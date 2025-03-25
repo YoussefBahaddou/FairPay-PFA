@@ -48,8 +48,9 @@ public class LoginActivity extends AppCompatActivity {
         findViewById(R.id.tv_register).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                // TODO: Navigate to registration screen
-                Toast.makeText(LoginActivity.this, "Register functionality coming soon!", Toast.LENGTH_SHORT).show();
+                // Navigate to SignupActivity
+                Intent intent = new Intent(LoginActivity.this, SignupActivity.class);
+                startActivity(intent);
             }
         });
 
