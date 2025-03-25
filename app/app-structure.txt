@@ -1,0 +1,31 @@
+app/
+├── src/
+│   ├── main/
+│   │   ├── java/
+│   │   │   └── com/
+│   │   │       └── emsi/
+│   │   │           └── fairpay_maroc/
+│   │   │               └── ui/
+│   │   │                   └── activities/
+│   │   │                       ├── LoginActivity.java
+│   │   │                       └── MainActivity.java
+│   │   ├── res/
+│   │   │   ├── drawable/
+│   │   │   │   ├── ic_account.xml
+│   │   │   │   ├── ic_lock.xml
+│   │   │   │   ├── ic_search.xml
+│   │   │   │   └── wave_pattern.xml
+│   │   │   ├── layout/
+│   │   │   │   ├── activity_login.xml
+│   │   │   │   ├── activity_main.xml
+│   │   │   │   ├── nav_header.xml
+│   │   │   │   └── toolbar_main.xml
+│   │   │   ├── menu/
+│   │   │   │   └── drawer_menu.xml
+│   │   │   ├── values/
+│   │   │   │   ├── colors.xml
+│   │   │   │   ├── strings.xml
+│   │   │   │   └── themes.xml
+│   │   │   └── values-night/
+│   │   │       └── themes.xml
+│   │   └── AndroidManifest.xml
