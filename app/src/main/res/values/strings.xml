@@ -29,9 +29,12 @@
     <string name="error_username_required">Username is required</string>
     <string name="error_password_required">Password is required</string>
     <string name="error_password_too_short">Password must be at least 6 characters</string>
+    <string name="logging_in">Logging in...</string>
+    <string name="error_invalid_credentials">Invalid username or password</string>
 
     <!-- Signup Screen -->
     <string name="sign_up">Sign Up</string>
+    <string name="signup">Sign Up</string>
     <string name="create_account">Create Your Account</string>
     <string name="full_name">Full Name</string>
     <string name="email">Email Address</string>
@@ -44,4 +47,9 @@
     <string name="error_confirm_password_required">Please confirm your password</string>
     <string name="error_passwords_dont_match">Passwords don\'t match</string>
     <string name="signup_success">Account created successfully!</string>
+    <string name="registering">Registering...</string>
+    <string name="error_username_taken">Username is already taken</string>
+    <string name="error_email_taken">Email is already registered</string>
+    <string name="phone_number">Phone Number</string>
+    <string name="error_phone_required">Phone number is required</string>
 </resources>

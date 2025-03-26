@@ -1,0 +1,67 @@
+CREATE TABLE utilisateur (
+    id SERIAL PRIMARY KEY,
+    nom VARCHAR(255),
+    prenom VARCHAR(255),
+    username VARCHAR(255) UNIQUE,
+    password VARCHAR(255),
+    telephone VARCHAR(20),
+    email VARCHAR(255) UNIQUE,
+    role_id INT REFERENCES role(id)
+);
+
+CREATE TABLE role (
+    id SERIAL PRIMARY KEY,
+    nom VARCHAR(255)
+);
+
+CREATE TABLE chat (
+    id SERIAL PRIMARY KEY,
+    sujet VARCHAR(255),
+    datecreation DATE
+);
+
+CREATE TABLE commentaire (
+    id SERIAL PRIMARY KEY,
+    message TEXT,
+    datecreation DATE,
+    utilisateur_id INT REFERENCES utilisateur(id),
+    chat_id INT REFERENCES chat(id)
+);
+
+CREATE TABLE produit_serv (
+    id SERIAL PRIMARY KEY,
+    nom VARCHAR(255),
+    prix FLOAT,
+    conseil TEXT,
+    datemiseenjour DATE,
+    categorie_id INT REFERENCES categorie(id),
+    ville_id INT REFERENCES ville(id),
+    type_id INT REFERENCES type(id)
+);
+
+CREATE TABLE categorie (
+    id SERIAL PRIMARY KEY,
+    nom VARCHAR(255)
+);
+
+CREATE TABLE ville (
+    id SERIAL PRIMARY KEY,
+    nom VARCHAR(255),
+    region_id INT REFERENCES region(id)
+);
+
+CREATE TABLE region (
+    id SERIAL PRIMARY KEY,
+    nom VARCHAR(255)
+);
+
+CREATE TABLE type (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255)
+);
+
+CREATE TABLE favoris (
+    id SERIAL PRIMARY KEY,
+    utilisateur_id INT REFERENCES utilisateur(id),
+    produit_serv_id INT REFERENCES produit_serv(id)
+);
