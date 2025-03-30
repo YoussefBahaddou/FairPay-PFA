@@ -14,15 +14,23 @@
         android:theme="@style/Theme.FairPayMaroc"
         tools:targetApi="31">
 
+        <!-- SplashActivity is now the launcher activity -->
         <activity
-            android:name=".ui.activities.LoginActivity"
-            android:exported="true">
+            android:name=".ui.activities.SplashActivity"
+            android:exported="true"
+            android:theme="@style/Theme.FairPayMaroc.Splash">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
 
+        <!-- LoginActivity is no longer the launcher -->
+        <activity
+            android:name=".ui.activities.LoginActivity"
+            android:exported="false" />
+
+        <!-- Other activities -->
         <activity
             android:name=".ui.activities.MainActivity"
             android:exported="false" />
@@ -33,10 +41,6 @@
 
         <activity
             android:name=".ui.activities.ForgotPasswordActivity"
-            android:exported="false" />
-
-        <activity
-            android:name=".ui.activities.LanguageSettingsActivity"
             android:exported="false" />
 
     </application>
