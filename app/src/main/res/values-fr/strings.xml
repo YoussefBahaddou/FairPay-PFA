@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">FairPay Maroc</string>
+    <string name="app_logo">Logo de l\'application</string>
+    <string name="profile">Profil</string>
+    <string name="search_icon">Icône de recherche</string>
+    <string name="search_hint">Rechercher des produits, services ou emplacements…</string>
+    <string name="categories">Catégories</string>
+    <string name="popular_locations">Emplacements populaires</string>
+    <string name="recent_updates">Mises à jour récentes des prix</string>
+    <string name="home">Accueil</string>
+    <string name="locations">Emplacements</string>
+    <string name="contribute">Contribuer</string>
+    <string name="account">Compte</string>
+    <string name="settings">Paramètres</string>
+    <string name="logout">Déconnexion</string>
+    <string name="pay_the_right_price">Payez le juste prix</string>
+    <string name="navigation_drawer_open">Ouvrir le menu de navigation</string>
+    <string name="navigation_drawer_close">Fermer le menu de navigation</string>
+
+    <!-- Login Screen -->
+    <string name="login">Connexion</string>
+    <string name="username">Nom d\'utilisateur</string>
+    <string name="password">Mot de passe</string>
+    <string name="forgot_password">Mot de passe oublié?</string>
+    <string name="no_account">Vous n\'avez pas de compte?</string>
+    <string name="register">S\'inscrire</string>
+    <string name="login_welcome">Bienvenue!</string>
+    <string name="background_pattern">Motif d\'arrière-plan</string>
+    <string name="error_username_required">Le nom d\'utilisateur est requis</string>
+    <string name="error_password_required">Le mot de passe est requis</string>
+    <string name="error_password_too_short">Le mot de passe doit contenir au moins 6 caractères</string>
+
+    <!-- Signup Screen -->
+    <string name="sign_up">S\'inscrire</string>
+    <string name="create_account">Créez votre compte</string>
+    <string name="full_name">Nom complet</string>
+    <string name="email">Adresse e-mail</string>
+    <string name="confirm_password">Confirmer le mot de passe</string>
+    <string name="already_have_account">Vous avez déjà un compte?</string>
+    <string name="error_name_required">Le nom complet est requis</string>
+    <string name="error_email_required">L\'adresse e-mail est requise</string>
+    <string name="error_invalid_email">Veuillez entrer une adresse e-mail valide</string>
+    <string name="error_username_too_short">Le nom d\'utilisateur doit contenir au moins 4 caractères</string>
+    <string name="error_confirm_password_required">Veuillez confirmer votre mot de passe</string>
+    <string name="error_passwords_dont_match">Les mots de passe ne correspondent pas</string>
+    <string name="signup_success">Compte créé avec succès!</string>
+    <string name="registering">Inscription en cours...</string>
+    <string name="error_username_taken">Ce nom d\'utilisateur est déjà pris</string>
+    <string name="error_email_taken">Cette adresse e-mail est déjà enregistrée</string>
+    <string name="phone_number">Numéro de téléphone</string>
+    <string name="error_phone_required">Le numéro de téléphone est requis</string>
+
+    <string name="product_image">Image du produit</string>
+    <string name="location_image">Image de l\'emplacement</string>
+    <string name="category_icon">Icône de catégorie</string>
+
+    <!-- Forgot Password Screen -->
+    <string name="reset_password">Réinitialiser le mot de passe</string>
+    <string name="reset_password_instructions">Entrez votre adresse e-mail ci-dessous et nous vous enverrons un lien pour réinitialiser votre mot de passe.</string>
+    <string name="send_reset_email">Envoyer l\'e-mail de réinitialisation</string>
+    <string name="remember_password">Vous vous souvenez de votre mot de passe?</string>
+    <string name="reset_email_sent">E-mail de réinitialisation envoyé</string>
+    <string name="reset_email_sent_message">Un e-mail avec les instructions de réinitialisation a été envoyé à votre adresse e-mail.</string>
+    <string name="ok">OK</string>
+
+    <!-- Language Settings -->
+    <string name="language">Langue</string>
+    <string name="language_settings">Paramètres de langue</string>
+    <string name="select_language">Sélectionnez la langue</string>
+    <string name="french">Français</string>
+    <string name="arabic">Arabe</string>
+    <string name="language_changed">Langue modifiée</string>
+    <string name="restart_app">L\'application va redémarrer pour appliquer les changements</string>
+</resources>

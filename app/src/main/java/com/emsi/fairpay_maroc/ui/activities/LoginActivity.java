@@ -1,30 +1,47 @@
 package com.emsi.fairpay_maroc.ui.activities;
 
+import android.app.Dialog;
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.widget.ImageButton;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
 import android.widget.Toast;
 
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.emsi.fairpay_maroc.R;
+<<<<<<< HEAD
 import com.emsi.fairpay_maroc.data.SupabaseClient;
+=======
+import com.emsi.fairpay_maroc.utils.LanguageHelper;
+>>>>>>> Youssef-TestBranch
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
 
+<<<<<<< HEAD
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 public class LoginActivity extends AppCompatActivity {
     private static final String TAG = "LoginActivity";
+=======
+public class LoginActivity extends BaseActivity {
+>>>>>>> Youssef-TestBranch
 
     private TextInputLayout tilUsername, tilPassword;
     private TextInputEditText etUsername, etPassword;
     private MaterialButton btnLogin;
+<<<<<<< HEAD
     private boolean isLoading = false;
+=======
+    private ImageButton btnLanguage;
+>>>>>>> Youssef-TestBranch
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -37,6 +54,15 @@ public class LoginActivity extends AppCompatActivity {
         etUsername = findViewById(R.id.et_username);
         etPassword = findViewById(R.id.et_password);
         btnLogin = findViewById(R.id.btn_login);
+        btnLanguage = findViewById(R.id.btn_language);
+
+        // Set up language button click listener
+        btnLanguage.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                showLanguageSelectionDialog();
+            }
+        });
 
         // Set up login button click listener
         btnLogin.setOnClickListener(new View.OnClickListener() {
@@ -52,7 +78,6 @@ public class LoginActivity extends AppCompatActivity {
         findViewById(R.id.tv_register).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                // Navigate to SignupActivity
                 Intent intent = new Intent(LoginActivity.this, SignupActivity.class);
                 startActivity(intent);
             }
@@ -62,12 +87,13 @@ public class LoginActivity extends AppCompatActivity {
         findViewById(R.id.tv_forgot_password).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                // TODO: Navigate to forgot password screen
-                Toast.makeText(LoginActivity.this, "Forgot password functionality coming soon!", Toast.LENGTH_SHORT).show();
+                Intent intent = new Intent(LoginActivity.this, ForgotPasswordActivity.class);
+                startActivity(intent);
             }
         });
     }
 
+<<<<<<< HEAD
     private void loginUser() {
         isLoading = true;
         btnLogin.setEnabled(false);
@@ -157,6 +183,52 @@ public class LoginActivity extends AppCompatActivity {
         } catch (JSONException e) {
             Log.e(TAG, "Error saving user session: " + e.getMessage(), e);
         }
+=======
+    private void showLanguageSelectionDialog() {
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_language_selection, null);
+        RadioGroup radioGroup = dialogView.findViewById(R.id.radio_group_language);
+        RadioButton radioFrench = dialogView.findViewById(R.id.radio_french);
+        RadioButton radioArabic = dialogView.findViewById(R.id.radio_arabic);
+
+        // Set the current language selection
+        String currentLanguage = LanguageHelper.getLanguage(this);
+        if ("ar".equals(currentLanguage)) {
+            radioArabic.setChecked(true);
+        } else {
+            radioFrench.setChecked(true);
+        }
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setView(dialogView)
+                .setPositiveButton(R.string.ok, (dialogInterface, i) -> {
+                    // Get selected language
+                    int selectedId = radioGroup.getCheckedRadioButtonId();
+                    String languageCode;
+
+                    if (selectedId == R.id.radio_arabic) {
+                        languageCode = "ar";
+                    } else {
+                        languageCode = "fr";
+                    }
+
+                    // If language changed, update it and restart activity
+                    if (!languageCode.equals(currentLanguage)) {
+                        LanguageHelper.setLanguage(this, languageCode);
+
+                        // Show toast message
+                        Toast.makeText(this, R.string.language_changed, Toast.LENGTH_SHORT).show();
+
+                        // Restart activity to apply language change
+                        Intent intent = getIntent();
+                        finish();
+                        startActivity(intent);
+                    }
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .create();
+
+        dialog.show();
+>>>>>>> Youssef-TestBranch
     }
 
     private boolean validateInputs() {

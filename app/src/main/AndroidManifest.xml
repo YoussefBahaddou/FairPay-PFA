@@ -6,6 +6,7 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <application
+        android:name=".FairPayApplication"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -16,24 +17,33 @@
         android:theme="@style/Theme.FairPayMaroc"
         tools:targetApi="31">
 
-        <!-- LoginActivity is the launcher activity -->
+        <!-- SplashActivity is now the launcher activity -->
         <activity
-            android:name=".ui.activities.LoginActivity"
-            android:exported="true">
+            android:name=".ui.activities.SplashActivity"
+            android:exported="true"
+            android:theme="@style/Theme.FairPayMaroc.Splash">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
 
-        <!-- SignupActivity -->
+        <!-- LoginActivity is no longer the launcher -->
+        <activity
+            android:name=".ui.activities.LoginActivity"
+            android:exported="false" />
+
+        <!-- Other activities -->
+        <activity
+            android:name=".ui.activities.MainActivity"
+            android:exported="false" />
+
         <activity
             android:name=".ui.activities.SignupActivity"
             android:exported="false" />
 
-        <!-- MainActivity -->
         <activity
-            android:name=".ui.activities.MainActivity"
+            android:name=".ui.activities.ForgotPasswordActivity"
             android:exported="false" />
 
     </application>
