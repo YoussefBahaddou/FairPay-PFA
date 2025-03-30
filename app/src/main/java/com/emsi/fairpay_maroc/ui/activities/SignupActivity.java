@@ -13,7 +13,7 @@ import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
 
-public class SignupActivity extends AppCompatActivity {
+public class SignupActivity extends BaseActivity {
 
     private TextInputLayout tilFullName, tilEmail, tilUsername, tilPassword, tilConfirmPassword;
     private TextInputEditText etFullName, etEmail, etUsername, etPassword, etConfirmPassword;

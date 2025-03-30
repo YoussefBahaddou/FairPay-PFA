@@ -10,6 +10,7 @@ import android.app.AlertDialog;
 import android.content.Intent;
 import android.widget.Toast;
 
+
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.ActionBarDrawerToggle;
@@ -183,6 +184,10 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         } else if (id == R.id.nav_profile) {
             // Navigate to profile screen
             Toast.makeText(this, "Profile", Toast.LENGTH_SHORT).show();
+        } else if (id == R.id.nav_language) {
+            // Navigate to language settings
+            Intent intent = new Intent(this, LanguageSettingsActivity.class);
+            startActivity(intent);
         } else if (id == R.id.nav_settings) {
             // Navigate to settings screen
             Toast.makeText(this, "Settings", Toast.LENGTH_SHORT).show();
@@ -194,6 +199,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         drawerLayout.closeDrawer(GravityCompat.START);
         return true;
     }
+
 
     /**
      * Handles the logout process

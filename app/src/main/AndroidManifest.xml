@@ -3,6 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <application
+        android:name=".FairPayApplication"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -13,12 +14,6 @@
         android:theme="@style/Theme.FairPayMaroc"
         tools:targetApi="31">
 
-        <!-- Add this inside the <application> tag -->
-        <activity
-            android:name=".ui.activities.ForgotPasswordActivity"
-            android:exported="false" />
-
-        <!-- LoginActivity is the launcher activity -->
         <activity
             android:name=".ui.activities.LoginActivity"
             android:exported="true">
@@ -28,14 +23,20 @@
             </intent-filter>
         </activity>
 
-        <!-- SignupActivity -->
+        <activity
+            android:name=".ui.activities.MainActivity"
+            android:exported="false" />
+
         <activity
             android:name=".ui.activities.SignupActivity"
             android:exported="false" />
 
-        <!-- MainActivity -->
         <activity
-            android:name=".ui.activities.MainActivity"
+            android:name=".ui.activities.ForgotPasswordActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.activities.LanguageSettingsActivity"
             android:exported="false" />
 
     </application>

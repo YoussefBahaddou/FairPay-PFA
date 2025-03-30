@@ -1,12 +1,10 @@
 package com.emsi.fairpay_maroc.ui.activities;
 
-import android.app.AlertDialog;
-import android.content.Intent;
 import android.os.Bundle;
-import android.util.Patterns;
 import android.view.View;
-import android.widget.TextView;
+import android.widget.Toast;
 
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.emsi.fairpay_maroc.R;
@@ -14,12 +12,11 @@ import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
 
-public class ForgotPasswordActivity extends AppCompatActivity {
+public class ForgotPasswordActivity extends BaseActivity {
 
     private TextInputLayout tilEmail;
     private TextInputEditText etEmail;
-    private MaterialButton btnResetPassword;
-    private TextView tvBackToLogin;
+    private MaterialButton btnSendResetEmail;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -29,26 +26,26 @@ public class ForgotPasswordActivity extends AppCompatActivity {
         // Initialize views
         tilEmail = findViewById(R.id.til_email);
         etEmail = findViewById(R.id.et_email);
-        btnResetPassword = findViewById(R.id.btn_reset_password);
-        tvBackToLogin = findViewById(R.id.tv_back_to_login);
+        btnSendResetEmail = findViewById(R.id.btn_send_reset_email);
 
-        // Set up reset password button click listener
-        btnResetPassword.setOnClickListener(new View.OnClickListener() {
+        // Set up send reset email button click listener
+        btnSendResetEmail.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 if (validateEmail()) {
-                    // In a real app, you would send a password reset email here
+                    // In a real app, you would send a reset email
+                    // For now, just show a success dialog
                     showResetEmailSentDialog();
                 }
             }
         });
 
-        // Set up back to login text click listener
-        tvBackToLogin.setOnClickListener(new View.OnClickListener() {
+        // Set up login text click listener
+        findViewById(R.id.tv_login).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                // Navigate back to login screen
-                finish(); // This will close the current activity and return to the previous one (LoginActivity)
+                // Just finish this activity to go back to login
+                finish();
             }
         });
     }
@@ -56,10 +53,11 @@ public class ForgotPasswordActivity extends AppCompatActivity {
     private boolean validateEmail() {
         String email = etEmail.getText().toString().trim();
 
+        // Validate email
         if (email.isEmpty()) {
             tilEmail.setError(getString(R.string.error_email_required));
             return false;
-        } else if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+        } else if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
             tilEmail.setError(getString(R.string.error_invalid_email));
             return false;
         } else {
@@ -70,15 +68,13 @@ public class ForgotPasswordActivity extends AppCompatActivity {
 
     private void showResetEmailSentDialog() {
         new AlertDialog.Builder(this)
-                .setTitle(getString(R.string.reset_email_sent))
-                .setMessage(getString(R.string.reset_email_sent_message))
-                .setPositiveButton(getString(R.string.ok), (dialog, which) -> {
-                    // Navigate back to login screen after user acknowledges
-                    Intent intent = new Intent(ForgotPasswordActivity.this, LoginActivity.class);
-                    startActivity(intent);
+                .setTitle(R.string.reset_email_sent)
+                .setMessage(R.string.reset_email_sent_message)
+                .setPositiveButton(R.string.ok, (dialog, which) -> {
+                    // Go back to login screen
                     finish();
                 })
-                .setCancelable(false) // User must press OK
+                .setCancelable(false)
                 .show();
     }
 }
