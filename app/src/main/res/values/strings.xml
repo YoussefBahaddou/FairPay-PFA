@@ -44,8 +44,6 @@
     <string name="error_confirm_password_required">Please confirm your password</string>
     <string name="error_passwords_dont_match">Passwords don\'t match</string>
     <string name="signup_success">Account created successfully!</string>
-<<<<<<< Updated upstream
-=======
     <string name="registering">Registering...</string>
     <string name="error_username_taken">Username is already taken</string>
     <string name="error_email_taken">Email is already registered</string>
@@ -55,5 +53,4 @@
     <string name="product_image">Product Image</string>
     <string name="location_image">Location Image</string>
     <string name="category_icon">Category Icon</string>
->>>>>>> Stashed changes
 </resources>
