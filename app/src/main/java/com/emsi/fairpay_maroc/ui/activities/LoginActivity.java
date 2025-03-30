@@ -58,10 +58,12 @@ public class LoginActivity extends AppCompatActivity {
         findViewById(R.id.tv_forgot_password).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                // TODO: Navigate to forgot password screen
-                Toast.makeText(LoginActivity.this, "Forgot password functionality coming soon!", Toast.LENGTH_SHORT).show();
+                // Navigate to forgot password screen
+                Intent intent = new Intent(LoginActivity.this, ForgotPasswordActivity.class);
+                startActivity(intent);
             }
         });
+
     }
 
     private boolean validateInputs() {

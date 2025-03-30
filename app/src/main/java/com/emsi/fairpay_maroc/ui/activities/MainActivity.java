@@ -3,6 +3,11 @@ package com.emsi.fairpay_maroc.ui.activities;
 import android.os.Bundle;
 import android.view.MenuItem;
 import android.widget.EditText;
+import android.widget.ImageButton;
+import android.widget.Toast;
+
+import android.app.AlertDialog;
+import android.content.Intent;
 import android.widget.Toast;
 
 import androidx.activity.OnBackPressedCallback;
@@ -54,6 +59,16 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 R.string.navigation_drawer_close);
         drawerLayout.addDrawerListener(toggle);
         toggle.syncState();
+
+        // Set up the menu button click listener
+        ImageButton menuButton = findViewById(R.id.menu_button);
+        menuButton.setOnClickListener(v -> {
+            if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
+                drawerLayout.closeDrawer(GravityCompat.START);
+            } else {
+                drawerLayout.openDrawer(GravityCompat.START);
+            }
+        });
 
         // Set up the search bar
         EditText searchBar = findViewById(R.id.search_bar);
@@ -173,11 +188,39 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             Toast.makeText(this, "Settings", Toast.LENGTH_SHORT).show();
         } else if (id == R.id.nav_logout) {
             // Handle logout
-            Toast.makeText(this, "Logging out...", Toast.LENGTH_SHORT).show();
-            // In a real app, you would clear user session and navigate to login screen
+            logout();
         }
 
         drawerLayout.closeDrawer(GravityCompat.START);
         return true;
     }
+
+    /**
+     * Handles the logout process
+     */
+    private void logout() {
+        // Show a confirmation dialog
+        new AlertDialog.Builder(this)
+                .setTitle("Logout")
+                .setMessage("Are you sure you want to logout?")
+                .setPositiveButton("Yes", (dialog, which) -> {
+                    // Clear any user session data here
+                    // For example, clear SharedPreferences
+
+                    // Create an intent to start the LoginActivity
+                    Intent intent = new Intent(MainActivity.this, LoginActivity.class);
+                    // Clear the back stack so the user can't go back to MainActivity after logout
+                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                    startActivity(intent);
+
+                    // Finish the current activity
+                    finish();
+
+                    // Show a toast message
+                    Toast.makeText(MainActivity.this, "Logged out successfully", Toast.LENGTH_SHORT).show();
+                })
+                .setNegativeButton("No", null)
+                .show();
+    }
+
 }
