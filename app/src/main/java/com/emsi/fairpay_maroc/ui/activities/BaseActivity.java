@@ -4,10 +4,12 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.res.Configuration;
 import android.os.Bundle;
+import android.view.View;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.emsi.fairpay_maroc.R;
 import com.emsi.fairpay_maroc.utils.LanguageHelper;
 
 public class BaseActivity extends AppCompatActivity {
@@ -22,22 +24,45 @@ public class BaseActivity extends AppCompatActivity {
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
         // Apply RTL layout for Arabic
-        String languageCode = LanguageHelper.getLanguage(this);
-        if ("ar".equals(languageCode)) {
-            getWindow().getDecorView().setLayoutDirection(android.view.View.LAYOUT_DIRECTION_RTL);
-        } else {
-            getWindow().getDecorView().setLayoutDirection(android.view.View.LAYOUT_DIRECTION_LTR);
-        }
+        applyLayoutDirection();
     }
 
     @Override
     public void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
+
         // Apply the saved language when configuration changes
         String languageCode = LanguageHelper.getLanguage(this);
         LanguageHelper.updateLocale(this, languageCode);
+
+        // Re-apply layout direction
+        applyLayoutDirection();
     }
+
+    /**
+     * Apply the correct layout direction based on the current language
+     */
+    private void applyLayoutDirection() {
+        String languageCode = LanguageHelper.getLanguage(this);
+        if ("ar".equals(languageCode)) {
+            getWindow().getDecorView().setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+        } else {
+            getWindow().getDecorView().setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
+        }
+    }
+
+    /**
+     * Restart the current activity to apply language changes
+     */
+    protected void restartActivity() {
+        Intent intent = getIntent();
+        finish();
+        startActivity(intent);
+        overridePendingTransition(R.anim.fade_in, R.anim.fade_out);
+    }
+    
 
     protected void logout() {
         // Clear user session data

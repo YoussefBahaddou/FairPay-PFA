@@ -7,9 +7,10 @@ import android.content.res.Configuration;
 import com.emsi.fairpay_maroc.utils.LanguageHelper;
 
 public class FairPayApplication extends Application {
+
     @Override
     protected void attachBaseContext(Context base) {
-        // Apply the saved language before attaching the context
+        // Apply the saved language to the application context
         String languageCode = LanguageHelper.getLanguage(base);
         super.attachBaseContext(LanguageHelper.updateLocale(base, languageCode));
     }
@@ -17,6 +18,7 @@ public class FairPayApplication extends Application {
     @Override
     public void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
+
         // Apply the saved language when configuration changes
         String languageCode = LanguageHelper.getLanguage(this);
         LanguageHelper.updateLocale(this, languageCode);
