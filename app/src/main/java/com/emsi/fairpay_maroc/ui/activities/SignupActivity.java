@@ -15,14 +15,11 @@ import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
 
-<<<<<<< HEAD
-import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+
 import java.util.UUID;
-=======
-public class SignupActivity extends BaseActivity {
->>>>>>> Youssef-TestBranch
+
 
 public class SignupActivity extends AppCompatActivity {
     private static final String TAG = "SignupActivity";

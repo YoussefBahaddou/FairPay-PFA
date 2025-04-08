@@ -30,12 +30,12 @@
     <string name="error_username_required">Username is required</string>
     <string name="error_password_required">Password is required</string>
     <string name="error_password_too_short">Password must be at least 6 characters</string>
-    <string name="logging_in">Logging in...</string>
-    <string name="error_invalid_credentials">Invalid username or password</string>
+    <string name="logging_in" translatable="false">Logging in...</string>
+    <string name="error_invalid_credentials" translatable="false">Invalid username or password</string>
 
     <!-- Signup Screen -->
     <string name="sign_up">Sign Up</string>
-    <string name="signup">Sign Up</string>
+    <string name="signup" translatable="false">Sign Up</string>
     <string name="create_account">Create Your Account</string>
     <string name="full_name">Full Name</string>
     <string name="email">Email Address</string>
@@ -53,8 +53,7 @@
     <string name="error_email_taken">Email is already registered</string>
     <string name="phone_number">Phone Number</string>
     <string name="error_phone_required">Phone number is required</string>
-<<<<<<< HEAD
-=======
+
 
     <string name="product_image">Product Image</string>
     <string name="location_image">Location Image</string>

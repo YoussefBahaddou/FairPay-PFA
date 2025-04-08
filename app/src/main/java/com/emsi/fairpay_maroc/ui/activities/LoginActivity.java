@@ -14,34 +14,24 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.emsi.fairpay_maroc.R;
-<<<<<<< HEAD
 import com.emsi.fairpay_maroc.data.SupabaseClient;
-=======
 import com.emsi.fairpay_maroc.utils.LanguageHelper;
->>>>>>> Youssef-TestBranch
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
 
-<<<<<<< HEAD
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 public class LoginActivity extends AppCompatActivity {
     private static final String TAG = "LoginActivity";
-=======
-public class LoginActivity extends BaseActivity {
->>>>>>> Youssef-TestBranch
 
     private TextInputLayout tilUsername, tilPassword;
     private TextInputEditText etUsername, etPassword;
     private MaterialButton btnLogin;
-<<<<<<< HEAD
-    private boolean isLoading = false;
-=======
     private ImageButton btnLanguage;
->>>>>>> Youssef-TestBranch
+    private boolean isLoading = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -93,7 +83,6 @@ public class LoginActivity extends BaseActivity {
         });
     }
 
-<<<<<<< HEAD
     private void loginUser() {
         isLoading = true;
         btnLogin.setEnabled(false);
@@ -109,34 +98,32 @@ public class LoginActivity extends BaseActivity {
                 try {
                     // Query user by username
                     JSONArray users = SupabaseClient.queryTable(
-                            "utilisateur", 
-                            "username", 
-                            username, 
+                            "utilisateur",
+                            "username",
+                            username,
                             "id,nom,prenom,username,password,email,telephone,role_id"
                     );
-                    
+
                     if (users.length() > 0) {
                         JSONObject user = users.getJSONObject(0);
                         String storedPassword = user.getString("password");
-                        
+
                         // In a real app, you should use proper password hashing
                         if (password.equals(storedPassword)) {
                             // Login successful
-                            // Save user info to shared preferences
                             saveUserSession(user);
-                            
+
                             runOnUiThread(() -> {
-                                Toast.makeText(LoginActivity.this, 
-                                        "Login successful!", 
+                                Toast.makeText(LoginActivity.this,
+                                        "Login successful!",
                                         Toast.LENGTH_SHORT).show();
-                                
+
                                 // Navigate to MainActivity
                                 Intent intent = new Intent(LoginActivity.this, MainActivity.class);
                                 startActivity(intent);
                                 finish();
                             });
                         } else {
-                            // Password doesn't match
                             runOnUiThread(() -> {
                                 tilPassword.setError(getString(R.string.error_invalid_credentials));
                                 isLoading = false;
@@ -145,7 +132,6 @@ public class LoginActivity extends BaseActivity {
                             });
                         }
                     } else {
-                        // User not found
                         runOnUiThread(() -> {
                             tilUsername.setError(getString(R.string.error_invalid_credentials));
                             isLoading = false;
@@ -156,8 +142,8 @@ public class LoginActivity extends BaseActivity {
                 } catch (Exception e) {
                     Log.e(TAG, "Error during login: " + e.getMessage(), e);
                     runOnUiThread(() -> {
-                        Toast.makeText(LoginActivity.this, 
-                                "Error: " + e.getMessage(), 
+                        Toast.makeText(LoginActivity.this,
+                                "Error: " + e.getMessage(),
                                 Toast.LENGTH_SHORT).show();
                         isLoading = false;
                         btnLogin.setEnabled(true);
@@ -170,7 +156,6 @@ public class LoginActivity extends BaseActivity {
 
     private void saveUserSession(JSONObject user) {
         try {
-            // Save user data to SharedPreferences
             getSharedPreferences("FairPayPrefs", MODE_PRIVATE)
                     .edit()
                     .putInt("user_id", user.getInt("id"))
@@ -183,7 +168,8 @@ public class LoginActivity extends BaseActivity {
         } catch (JSONException e) {
             Log.e(TAG, "Error saving user session: " + e.getMessage(), e);
         }
-=======
+    }
+
     private void showLanguageSelectionDialog() {
         View dialogView = getLayoutInflater().inflate(R.layout.dialog_language_selection, null);
         RadioGroup radioGroup = dialogView.findViewById(R.id.radio_group_language);
@@ -201,7 +187,6 @@ public class LoginActivity extends BaseActivity {
         AlertDialog dialog = new AlertDialog.Builder(this)
                 .setView(dialogView)
                 .setPositiveButton(R.string.ok, (dialogInterface, i) -> {
-                    // Get selected language
                     int selectedId = radioGroup.getCheckedRadioButtonId();
                     String languageCode;
 
@@ -211,14 +196,9 @@ public class LoginActivity extends BaseActivity {
                         languageCode = "fr";
                     }
 
-                    // If language changed, update it and restart activity
                     if (!languageCode.equals(currentLanguage)) {
                         LanguageHelper.setLanguage(this, languageCode);
-
-                        // Show toast message
                         Toast.makeText(this, R.string.language_changed, Toast.LENGTH_SHORT).show();
-
-                        // Restart activity to apply language change
                         Intent intent = getIntent();
                         finish();
                         startActivity(intent);
@@ -228,7 +208,6 @@ public class LoginActivity extends BaseActivity {
                 .create();
 
         dialog.show();
->>>>>>> Youssef-TestBranch
     }
 
     private boolean validateInputs() {
@@ -237,7 +216,6 @@ public class LoginActivity extends BaseActivity {
         String username = etUsername.getText().toString().trim();
         String password = etPassword.getText().toString().trim();
 
-        // Validate username
         if (username.isEmpty()) {
             tilUsername.setError(getString(R.string.error_username_required));
             isValid = false;
@@ -245,7 +223,6 @@ public class LoginActivity extends BaseActivity {
             tilUsername.setError(null);
         }
 
-        // Validate password
         if (password.isEmpty()) {
             tilPassword.setError(getString(R.string.error_password_required));
             isValid = false;

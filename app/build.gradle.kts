@@ -40,7 +40,8 @@ dependencies {
     implementation(libs.appcompat)
     implementation(libs.material)
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
-    
+    implementation("com.github.bumptech.glide:glide:4.15.1")
+
     // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)

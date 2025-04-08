@@ -23,15 +23,30 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.emsi.fairpay_maroc.R;
 import com.emsi.fairpay_maroc.adapters.CategoryAdapter;
+import com.emsi.fairpay_maroc.adapters.ItemAdapter;
 import com.emsi.fairpay_maroc.adapters.LocationAdapter;
-import com.emsi.fairpay_maroc.adapters.PriceUpdateAdapter;
+
+import com.emsi.fairpay_maroc.data.SupabaseClient;
 import com.emsi.fairpay_maroc.models.Category;
 import com.emsi.fairpay_maroc.models.Location;
-import com.emsi.fairpay_maroc.models.PriceUpdate;
+
 import com.google.android.material.navigation.NavigationView;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import com.emsi.fairpay_maroc.models.Item; // Updated to use Item class
+
+import java.util.Map;
+import java.util.concurrent.Executors;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.IOException;
+
+import android.util.Log;
 
 public class MainActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener {
 
@@ -97,6 +112,55 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         });
     }
 
+        private void fetchItemsFromDatabase(RecyclerView updatesRecyclerView) {
+        new Thread(() -> {
+            try {
+                Log.d("Fetching Item", "Starting to fetch items from the database...");
+                
+                // Fetch items from the "produit_serv" table
+                JSONArray itemsArray = queryItems("produit_serv");
+                List<Item> items = new ArrayList<>();
+    
+                Log.d("Fetching Item", "Successfully fetched data from the database. Parsing items...");
+    
+                // Map the JSON data to Item objects
+                for (int i = 0; i < itemsArray.length(); i++) {
+                    JSONObject itemData = itemsArray.getJSONObject(i);
+    
+                    // Handle null values with default values
+                    String image = itemData.optString("image", ""); // Handle image as a String
+                    String nom = itemData.optString("nom", "Unknown");
+                    String prix = itemData.optString("prix", "N/A");
+                    String conseil = itemData.optString("conseil", "No advice");
+                    String datemiseajour = itemData.optString("datemiseajour", "Unknown date");
+                    int categorieId = itemData.optInt("categorie_id", -1);
+                    int villeId = itemData.optInt("ville_id", -1);
+                    int typeId = itemData.optInt("type_id", -1);
+    
+                    Item item = new Item(image, nom, prix, conseil, datemiseajour, categorieId, villeId, typeId);
+                    items.add(item);
+                    Log.d("Fetching Item", "Parsed item: " + item.getNom());
+                }
+    
+                Log.d("Fetching Item", "All items parsed successfully. Updating RecyclerView...");
+    
+                // Update the RecyclerView on the main thread
+                runOnUiThread(() -> {
+                    ItemAdapter updateAdapter = new ItemAdapter(items);
+                    updatesRecyclerView.setAdapter(updateAdapter);
+                    Log.d("Fetching Item", "RecyclerView updated successfully.");
+                });
+            } catch (Exception e) {
+                Log.e("Fetching Item", "Error occurred while fetching items: " + e.getMessage(), e);
+                runOnUiThread(() -> Toast.makeText(this, "Error fetching data", Toast.LENGTH_SHORT).show());
+            }
+        }).start();
+    }
+    private JSONArray queryItems(String tableName) throws JSONException, IOException {
+        // Use the existing SupabaseClient.queryTable method
+        return SupabaseClient.queryTable(tableName, null, null, "*");
+    }
+
     private void setupRecyclerViews() {
         // Categories RecyclerView
         RecyclerView categoriesRecyclerView = findViewById(R.id.categories_recycler_view);
@@ -122,10 +186,8 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         RecyclerView updatesRecyclerView = findViewById(R.id.updates_recycler_view);
         updatesRecyclerView.setLayoutManager(new LinearLayoutManager(this));
 
-        // Create dummy price updates data
-        List<PriceUpdate> updates = createDummyPriceUpdates();
-        PriceUpdateAdapter updateAdapter = new PriceUpdateAdapter(updates);
-        updatesRecyclerView.setAdapter(updateAdapter);
+        // Fetch items from the database
+        fetchItemsFromDatabase(updatesRecyclerView);
     }
 
     private List<Category> createDummyCategories() {
@@ -149,21 +211,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         return locations;
     }
 
-    private List<PriceUpdate> createDummyPriceUpdates() {
-        List<PriceUpdate> updates = new ArrayList<>();
-        updates.add(new PriceUpdate(R.drawable.img_tomatoes, "Tomatoes", "Marjane Casablanca",
-                "12 DH/kg", "Today", "Updated by: Ahmed"));
-        updates.add(new PriceUpdate(R.drawable.img_laptop, "Laptop HP Pavilion", "Derb Ghallef",
-                "6500 DH", "Yesterday", "Updated by: Fatima"));
-        updates.add(new PriceUpdate(R.drawable.img_bread, "Bread", "Bakery Central Rabat",
-                "1.5 DH", "2 days ago", "Updated by: Mohammed"));
-        updates.add(new PriceUpdate(R.drawable.img_shoes, "Nike Running Shoes", "Morocco Mall",
-                "850 DH", "3 days ago", "Updated by: Leila"));
-        updates.add(new PriceUpdate(R.drawable.img_oil, "Olive Oil (1L)", "Carrefour Marrakech",
-                "85 DH", "4 days ago", "Updated by: Karim"));
-        return updates;
-    }
-
+   
     @Override
     public boolean onNavigationItemSelected(@NonNull MenuItem item) {
         // Handle navigation view item clicks here
