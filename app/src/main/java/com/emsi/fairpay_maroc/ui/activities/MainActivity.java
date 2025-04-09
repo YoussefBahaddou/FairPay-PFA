@@ -39,6 +39,10 @@ import com.emsi.fairpay_maroc.models.Item; // Updated to use Item class
 
 import java.util.Map;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -112,7 +116,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         });
     }
 
-        private void fetchItemsFromDatabase(RecyclerView updatesRecyclerView) {
+    private void fetchItemsFromDatabase(RecyclerView updatesRecyclerView) {
         new Thread(() -> {
             try {
                 Log.d("Fetching Item", "Starting to fetch items from the database...");
@@ -120,30 +124,34 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 // Fetch items from the "produit_serv" table
                 JSONArray itemsArray = queryItems("produit_serv");
                 List<Item> items = new ArrayList<>();
-    
+
                 Log.d("Fetching Item", "Successfully fetched data from the database. Parsing items...");
-    
+
                 // Map the JSON data to Item objects
                 for (int i = 0; i < itemsArray.length(); i++) {
                     JSONObject itemData = itemsArray.getJSONObject(i);
-    
-                    // Handle null values with default values
+
+                    // Resolve foreign key data
+                    String categorieName = resolveForeignKey("categorie", "id", itemData.optInt("categorie_id", -1), "nom");
+                    String regionName = resolveForeignKey("ville", "id", itemData.optInt("ville_id", -1), "nom");
+                    String typeName = resolveForeignKey("type", "id", itemData.optInt("type_id", -1), "name");
+
+                    // Calculate the difference between current date and "datemiseajour"
+                    String datemiseajour = itemData.optString("datemiseajour", "Unknown date");
+                    String timeDifference = calculateTimeDifference(datemiseajour);
+
+                    // Map the data to an Item object
                     String image = itemData.optString("image", ""); // Handle image as a String
                     String nom = itemData.optString("nom", "Unknown");
                     String prix = itemData.optString("prix", "N/A");
-                    String conseil = itemData.optString("conseil", "No advice");
-                    String datemiseajour = itemData.optString("datemiseajour", "Unknown date");
-                    int categorieId = itemData.optInt("categorie_id", -1);
-                    int villeId = itemData.optInt("ville_id", -1);
-                    int typeId = itemData.optInt("type_id", -1);
-    
-                    Item item = new Item(image, nom, prix, conseil, datemiseajour, categorieId, villeId, typeId);
+
+                    Item item = new Item(image, nom, prix, "No advice", timeDifference, categorieName, regionName, typeName);
                     items.add(item);
                     Log.d("Fetching Item", "Parsed item: " + item.getNom());
                 }
-    
+
                 Log.d("Fetching Item", "All items parsed successfully. Updating RecyclerView...");
-    
+
                 // Update the RecyclerView on the main thread
                 runOnUiThread(() -> {
                     ItemAdapter updateAdapter = new ItemAdapter(items);
@@ -156,98 +164,158 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             }
         }).start();
     }
+
+    private void fetchCategoriesFromDatabase(RecyclerView categoriesRecyclerView) {
+        new Thread(() -> {
+            try {
+                Log.d("Fetching Category", "Starting to fetch categories from the database...");
+                
+                // Fetch categories from the "categorie" tablex
+                JSONArray categoriesArray = queryItems("categorie");
+                List<Category> categories = new ArrayList<>();
+
+                Log.d("Fetching Category", "Successfully fetched data from the database. Parsing categories...");
+
+                // Map the JSON data to Category objects
+                for (int i = 0; i < categoriesArray.length(); i++) {
+                    JSONObject categoryData = categoriesArray.getJSONObject(i);
+
+                    String name = categoryData.optString("nom", "Unknown");
+                    String iconUrl = categoryData.optString("icon", "");
+
+                    Category category = new Category(iconUrl, name);
+                    categories.add(category);
+                    Log.d("Fetching Category", "Parsed category: " + category.getName());
+                }
+
+                Log.d("Fetching Category", "All categories parsed successfully. Updating RecyclerView...");
+
+                // Update the RecyclerView on the main thread
+                runOnUiThread(() -> {
+                    CategoryAdapter categoryAdapter = new CategoryAdapter(categories);
+                    categoriesRecyclerView.setAdapter(categoryAdapter);
+                    Log.d("Fetching Category", "RecyclerView updated successfully.");
+                });
+            } catch (Exception e) {
+                Log.e("Fetching Category", "Error occurred while fetching categories: " + e.getMessage(), e);
+                runOnUiThread(() -> Toast.makeText(this, "Error fetching categories", Toast.LENGTH_SHORT).show());
+            }
+        }).start();
+    }
+
+    private void fetchLocationsFromDatabase(RecyclerView locationsRecyclerView) {
+        new Thread(() -> {
+            try {
+                Log.d("Fetching Location", "Starting to fetch Flocations from the database...");
+                
+                // Fetch locations from the "region" table
+                JSONArray locationsArray = queryItems("region");
+                List<Location> locations = new ArrayList<>();
+
+                Log.d("Fetching Location", "Successfully fetched data from the database. Parsing locations...");
+
+                // Map the JSON data to Location objects
+                for (int i = 0; i < locationsArray.length(); i++) {
+                    JSONObject locationData = locationsArray.getJSONObject(i);
+
+                    String name = locationData.optString("nom", "Unknown");
+                    int villeId = locationData.optInt("ville_id", -1);
+
+                    // Resolve ville name from ville_id
+                    String villeName = resolveForeignKey("ville", "id", villeId, "nom");
+
+                    Location location = new Location(name, villeName);
+                    locations.add(location);
+                    Log.d("Fetching Location", "Parsed location: " + location.getName() + ", Ville: " + location.getVilleName());
+                }
+
+                Log.d("Fetching Location", "All locations parsed successfully. Updating RecyclerView...");
+
+                // Update the RecyclerView on the main thread
+                runOnUiThread(() -> {
+                    LocationAdapter locationAdapter = new LocationAdapter(locations);
+                    locationsRecyclerView.setAdapter(locationAdapter);
+                    Log.d("Fetching Location", "RecyclerView updated successfully.");
+                });
+            } catch (Exception e) {
+                Log.e("Fetching Location", "Error occurred while fetching locations: " + e.getMessage(), e);
+                runOnUiThread(() -> Toast.makeText(this, "Error fetching locations", Toast.LENGTH_SHORT).show());
+            }
+        }).start();
+    }
+
     private JSONArray queryItems(String tableName) throws JSONException, IOException {
         // Use the existing SupabaseClient.queryTable method
         return SupabaseClient.queryTable(tableName, null, null, "*");
     }
 
+    private String resolveForeignKey(String tableName, String keyColumn, int keyValue, String targetColumn) throws JSONException, IOException {
+        if (keyValue == -1) return "Unknown";
+        JSONArray result = SupabaseClient.queryTable(tableName, keyColumn, String.valueOf(keyValue), targetColumn);
+        if (result.length() > 0) {
+            return result.getJSONObject(0).optString(targetColumn, "Unknown");
+        }
+        return "Unknown";
+    }
+
+    private String calculateTimeDifference(String dateString) {
+        try {
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+            Date date = sdf.parse(dateString);
+            long diffInMillis = System.currentTimeMillis() - date.getTime();
+            long days = TimeUnit.MILLISECONDS.toDays(diffInMillis);
+            return days + " jours";
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "Unknown date";
+        }
+    }
+
     private void setupRecyclerViews() {
         // Categories RecyclerView
         RecyclerView categoriesRecyclerView = findViewById(R.id.categories_recycler_view);
-        categoriesRecyclerView.setLayoutManager(
-                new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
-
-        // Create dummy categories data
-        List<Category> categories = createDummyCategories();
-        CategoryAdapter categoryAdapter = new CategoryAdapter(categories);
-        categoriesRecyclerView.setAdapter(categoryAdapter);
-
+        categoriesRecyclerView.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+        fetchCategoriesFromDatabase(categoriesRecyclerView);
+    
         // Locations RecyclerView
         RecyclerView locationsRecyclerView = findViewById(R.id.locations_recycler_view);
-        locationsRecyclerView.setLayoutManager(
-                new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
-
-        // Create dummy locations data
-        List<Location> locations = createDummyLocations();
-        LocationAdapter locationAdapter = new LocationAdapter(locations);
-        locationsRecyclerView.setAdapter(locationAdapter);
-
+        locationsRecyclerView.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+        fetchLocationsFromDatabase(locationsRecyclerView);
+    
         // Updates RecyclerView
         RecyclerView updatesRecyclerView = findViewById(R.id.updates_recycler_view);
         updatesRecyclerView.setLayoutManager(new LinearLayoutManager(this));
-
-        // Fetch items from the database
         fetchItemsFromDatabase(updatesRecyclerView);
     }
 
-    private List<Category> createDummyCategories() {
-        List<Category> categories = new ArrayList<>();
-        categories.add(new Category(R.drawable.ic_food, "Food"));
-        categories.add(new Category(R.drawable.ic_electronics, "Electronics"));
-        categories.add(new Category(R.drawable.ic_clothing, "Clothing"));
-        categories.add(new Category(R.drawable.ic_home, "Home"));
-        categories.add(new Category(R.drawable.ic_beauty, "Beauty"));
-        categories.add(new Category(R.drawable.ic_sports, "Sports"));
-        return categories;
-    }
-
-    private List<Location> createDummyLocations() {
-        List<Location> locations = new ArrayList<>();
-        locations.add(new Location(R.drawable.img_casablanca, "Casablanca", "Economic capital"));
-        locations.add(new Location(R.drawable.img_rabat, "Rabat", "Administrative capital"));
-        locations.add(new Location(R.drawable.img_marrakech, "Marrakech", "Tourist destination"));
-        locations.add(new Location(R.drawable.img_tangier, "Tangier", "Northern port city"));
-        locations.add(new Location(R.drawable.img_agadir, "Agadir", "Coastal city"));
-        return locations;
-    }
-
-   
     @Override
     public boolean onNavigationItemSelected(@NonNull MenuItem item) {
-        // Handle navigation view item clicks here
         int id = item.getItemId();
 
         if (id == R.id.nav_home) {
-            // Already on home screen
             Toast.makeText(this, "Home", Toast.LENGTH_SHORT).show();
         } else if (id == R.id.nav_categories) {
-            // Navigate to categories screen
             Toast.makeText(this, "Categories", Toast.LENGTH_SHORT).show();
         } else if (id == R.id.nav_locations) {
-            // Navigate to locations screen
-            Toast.makeText(this, "Locations", Toast.LENGTH_SHORT).show();
+            // Open MapActivity
+            Intent intent = new Intent(this, MapActivity.class);
+            startActivity(intent);
         } else if (id == R.id.nav_contribute) {
-            // Navigate to contribute screen
             Toast.makeText(this, "Contribute", Toast.LENGTH_SHORT).show();
         } else if (id == R.id.nav_profile) {
-            // Navigate to profile screen
             Toast.makeText(this, "Profile", Toast.LENGTH_SHORT).show();
         } else if (id == R.id.nav_language) {
-            // Navigate to language settings
             Intent intent = new Intent(this, LanguageSettingsActivity.class);
             startActivity(intent);
         } else if (id == R.id.nav_settings) {
-            // Navigate to settings screen
             Toast.makeText(this, "Settings", Toast.LENGTH_SHORT).show();
         } else if (id == R.id.nav_logout) {
-            // Handle logout
             logout();
         }
 
         drawerLayout.closeDrawer(GravityCompat.START);
         return true;
     }
-
 
     /**
      * Handles the logout process

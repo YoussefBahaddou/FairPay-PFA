@@ -31,28 +31,35 @@ public class ItemAdapter extends RecyclerView.Adapter<ItemAdapter.ItemViewHolder
         return new ItemViewHolder(view);
     }
 
-      @Override
+    @Override
     public void onBindViewHolder(@NonNull ItemViewHolder holder, int position) {
         Item item = items.get(position);
-    
+
         // Load the image from the URL using Glide
         Glide.with(holder.itemView.getContext())
              .load(item.getImage()) // Load the image URL
              .placeholder(R.drawable.placeholder_image) // Optional placeholder image
              .error(R.drawable.null_img) // Optional error image
              .into(holder.ivProductImage);
-    
+
         // Set the product name
         holder.tvProductName.setText(item.getNom());
-    
+
         // Format the price to always end with "DH"
         holder.tvPrice.setText(item.getPrix() + " DH");
-    
+
+
+// Set the type name
+        holder.tvType.setText("Type : " + item.getTypeName());
+        // Set the category name
+        holder.tvCategory.setText("Catégorie : " + item.getCategorieName());
+
+        // Set the region name
+        holder.tvLocation.setText("Ville : " + item.getRegionName());
+
+
         // Format the date to include "Dernier mise à jour le :"
-        holder.tvDate.setText("Dernier mise à jour le : " + item.getDatemiseajour());
-    
-        // Set the location text
-        holder.tvLocation.setText(item.getVilleId() == -1 ? "Unknown Location" : "Location ID: " + item.getVilleId());
+        holder.tvDate.setText("Dernier mise à jour il y a : " + item.getDatemiseajour());
     }
 
     @Override
@@ -66,7 +73,8 @@ public class ItemAdapter extends RecyclerView.Adapter<ItemAdapter.ItemViewHolder
         TextView tvLocation;
         TextView tvPrice;
         TextView tvDate;
-        TextView tvUpdatedBy;
+        TextView tvCategory;
+        TextView tvType;
 
         ItemViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -75,6 +83,8 @@ public class ItemAdapter extends RecyclerView.Adapter<ItemAdapter.ItemViewHolder
             tvLocation = itemView.findViewById(R.id.tv_location);
             tvPrice = itemView.findViewById(R.id.tv_price);
             tvDate = itemView.findViewById(R.id.tv_date);
+            tvCategory = itemView.findViewById(R.id.tv_category);
+            tvType = itemView.findViewById(R.id.tv_type);
         }
     }
 }

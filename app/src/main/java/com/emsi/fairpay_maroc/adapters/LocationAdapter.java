@@ -3,7 +3,6 @@ package com.emsi.fairpay_maroc.adapters;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -33,9 +32,12 @@ public class LocationAdapter extends RecyclerView.Adapter<LocationAdapter.Locati
     @Override
     public void onBindViewHolder(@NonNull LocationViewHolder holder, int position) {
         Location location = locations.get(position);
-        holder.ivImage.setImageResource(location.getImageResId());
+
+        // Set the region name
         holder.tvName.setText(location.getName());
-        holder.tvDescription.setText(location.getDescription());
+
+        // Set the associated ville name
+        holder.tvVilleName.setText("Ville : " + location.getVilleName());
     }
 
     @Override
@@ -44,15 +46,13 @@ public class LocationAdapter extends RecyclerView.Adapter<LocationAdapter.Locati
     }
 
     static class LocationViewHolder extends RecyclerView.ViewHolder {
-        ImageView ivImage;
         TextView tvName;
-        TextView tvDescription;
+        TextView tvVilleName;
 
         LocationViewHolder(@NonNull View itemView) {
             super(itemView);
-            ivImage = itemView.findViewById(R.id.iv_location_image);
             tvName = itemView.findViewById(R.id.tv_location_name);
-            tvDescription = itemView.findViewById(R.id.tv_location_description);
+            tvVilleName = itemView.findViewById(R.id.tv_location_ville_name);
         }
     }
 }

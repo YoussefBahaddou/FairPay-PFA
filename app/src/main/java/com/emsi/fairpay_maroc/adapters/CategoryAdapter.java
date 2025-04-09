@@ -9,6 +9,7 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.bumptech.glide.Glide; // Import Glide
 import com.emsi.fairpay_maroc.R;
 import com.emsi.fairpay_maroc.models.Category;
 
@@ -33,7 +34,15 @@ public class CategoryAdapter extends RecyclerView.Adapter<CategoryAdapter.Catego
     @Override
     public void onBindViewHolder(@NonNull CategoryViewHolder holder, int position) {
         Category category = categories.get(position);
-        holder.ivIcon.setImageResource(category.getIconResId());
+
+        // Load the icon from the URL using Glide
+        Glide.with(holder.itemView.getContext())
+             .load(category.getIconUrl()) // Load the icon URL
+             .placeholder(R.drawable.placeholder_image) // Optional placeholder image
+             .error(R.drawable.error_image) // Optional error image
+             .into(holder.ivIcon);
+
+        // Set the category name
         holder.tvName.setText(category.getName());
     }
 

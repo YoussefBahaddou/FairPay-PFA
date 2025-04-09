@@ -1,25 +1,19 @@
 package com.emsi.fairpay_maroc.models;
 
 public class Location {
-    private int imageResId;
-    private String name;
-    private String description;
+    private String name; 
+    private String villeName; 
 
-    public Location(int imageResId, String name, String description) {
-        this.imageResId = imageResId;
+    public Location(String name, String villeName) {
         this.name = name;
-        this.description = description;
-    }
-
-    public int getImageResId() {
-        return imageResId;
+        this.villeName = villeName;
     }
 
     public String getName() {
         return name;
     }
 
-    public String getDescription() {
-        return description;
+    public String getVilleName() {
+        return villeName;
     }
 }

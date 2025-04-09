@@ -6,19 +6,19 @@ public class Item {
     private String prix;
     private String conseil;
     private String datemiseajour;
-    private int categorieId;
-    private int villeId;
-    private int typeId;
+    private String categorieName; 
+    private String regionName;    
+    private String typeName;      
 
-    public Item(String image, String nom, String prix, String conseil, String datemiseajour, int categorieId, int villeId, int typeId) {
+    public Item(String image, String nom, String prix, String conseil, String datemiseajour, String categorieName, String regionName, String typeName) {
         this.image = image;
         this.nom = nom;
         this.prix = prix;
         this.conseil = conseil;
         this.datemiseajour = datemiseajour;
-        this.categorieId = categorieId;
-        this.villeId = villeId;
-        this.typeId = typeId;
+        this.categorieName = categorieName;
+        this.regionName = regionName;
+        this.typeName = typeName;
     }
 
     public String getImage() {
@@ -61,27 +61,27 @@ public class Item {
         this.datemiseajour = datemiseajour;
     }
 
-    public int getCategorieId() {
-        return categorieId;
+    public String getCategorieName() {
+        return categorieName;
     }
 
-    public void setCategorieId(int categorieId) {
-        this.categorieId = categorieId;
+    public void setCategorieName(String categorieName) {
+        this.categorieName = categorieName;
     }
 
-    public int getVilleId() {
-        return villeId;
+    public String getRegionName() {
+        return regionName;
     }
 
-    public void setVilleId(int villeId) {
-        this.villeId = villeId;
+    public void setRegionName(String regionName) {
+        this.regionName = regionName;
     }
 
-    public int getTypeId() {
-        return typeId;
+    public String getTypeName() {
+        return typeName;
     }
 
-    public void setTypeId(int typeId) {
-        this.typeId = typeId;
+    public void setTypeName(String typeName) {
+        this.typeName = typeName;
     }
 }

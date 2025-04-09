@@ -13,6 +13,8 @@
         <item name="android:statusBarColor">@color/primary_dark</item>
         <!-- Customize your theme here. -->
         <item name="android:windowBackground">@color/white</item>
+        <!-- Disable Dark Mode -->
+        <item name="android:forceDarkAllowed" tools:targetApi="29">false</item>
     </style>
 
     <!-- Splash screen theme -->

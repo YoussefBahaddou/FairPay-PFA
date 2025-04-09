@@ -1,19 +1,27 @@
 package com.emsi.fairpay_maroc.models;
 
 public class Category {
-    private int iconResId;
-    private String name;
+    private String iconUrl;
+    private String name;    
 
-    public Category(int iconResId, String name) {
-        this.iconResId = iconResId;
+    public Category(String iconUrl, String name) {
+        this.iconUrl = iconUrl;
         this.name = name;
     }
 
-    public int getIconResId() {
-        return iconResId;
+    public String getIconUrl() {
+        return iconUrl;
+    }
+
+    public void setIconUrl(String iconUrl) {
+        this.iconUrl = iconUrl;
     }
 
     public String getName() {
         return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
     }
 }
