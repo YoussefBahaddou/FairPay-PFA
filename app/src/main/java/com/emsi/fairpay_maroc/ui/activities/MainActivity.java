@@ -11,6 +11,8 @@ import android.content.Intent;
 import android.view.View;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
+import android.widget.Button;
+import android.widget.TextView;
 
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
@@ -35,11 +37,12 @@ import com.emsi.fairpay_maroc.models.Location;
 import com.google.android.material.navigation.NavigationView;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import com.emsi.fairpay_maroc.models.Item;
 
-import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.text.SimpleDateFormat;
@@ -53,9 +56,13 @@ import org.json.JSONObject;
 import java.io.IOException;
 
 import android.util.Log;
+
 public class MainActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener {
 
     private DrawerLayout drawerLayout;
+    private static final int REQUEST_LOCATION_SELECTION = 1001;
+    private int selectedCityId = -1;
+    private String selectedCityName = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -67,6 +74,12 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         setSupportActionBar(toolbar);
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayShowTitleEnabled(false);
+        }
+        
+        TextView locationFilterText = findViewById(R.id.location_filter_text);
+        if (locationFilterText != null) {
+            locationFilterText.setText(getString(R.string.filtering_by_location, selectedCityName));
+            locationFilterText.setVisibility(View.VISIBLE);
         }
 
         // Set up the navigation drawer
@@ -207,7 +220,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     private void fetchLocationsFromDatabase(RecyclerView locationsRecyclerView) {
         new Thread(() -> {
             try {
-                Log.d("Fetching Location", "Starting to fetch Flocations from the database...");
+                Log.d("Fetching Location", "Starting to fetch locations from the database...");
                 
                 // Fetch locations from the "region" table
                 JSONArray locationsArray = queryItems("region");
@@ -272,6 +285,91 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         }
     }
 
+    // Add this method to handle location selection from the map
+    private void openLocationMap() {
+        Intent intent = new Intent(this, MapActivity.class);
+        startActivityForResult(intent, REQUEST_LOCATION_SELECTION);
+    }
+
+    // Add this method to handle the result from MapActivity
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        
+        if (requestCode == REQUEST_LOCATION_SELECTION && resultCode == RESULT_OK && data != null) {
+            selectedCityId = data.getIntExtra("city_id", -1);
+            selectedCityName = data.getStringExtra("city_name");
+            
+            if (selectedCityId != -1) {
+                Toast.makeText(this, "Selected location: " + selectedCityName, Toast.LENGTH_SHORT).show();
+                
+                // Update UI to show we're filtering by location
+                TextView locationFilterText = findViewById(R.id.location_filter_text);
+                if (locationFilterText != null) {
+                    locationFilterText.setText(getString(R.string.filtering_by_location, selectedCityName));
+                    locationFilterText.setVisibility(View.VISIBLE);
+                }
+                
+                // Refresh the items with the selected location filter
+                fetchItemsWithLocationFilter(selectedCityId);
+            }
+        }
+    }
+
+    // Add this method to fetch items filtered by location
+    private void fetchItemsWithLocationFilter(int cityId) {
+        RecyclerView updatesRecyclerView = findViewById(R.id.updates_recycler_view);
+        
+        new Thread(() -> {
+            try {
+                Log.d("Fetching Item", "Starting to fetch items from the database with location filter...");
+                
+                // Fetch items from the "produit_serv" table with the filter
+                JSONArray itemsArray = SupabaseClient.queryTable("produit_serv", "ville_id", String.valueOf(cityId), "*");
+                List<Item> items = new ArrayList<>();
+
+                Log.d("Fetching Item", "Successfully fetched data from the database. Parsing items...");
+
+                // Map the JSON data to Item objects
+                for (int i = 0; i < itemsArray.length(); i++) {
+                    JSONObject itemData = itemsArray.getJSONObject(i);
+
+                    // Resolve foreign key data
+                    String categorieName = resolveForeignKey("categorie", "id", itemData.optInt("categorie_id", -1), "nom");
+                    String regionName = resolveForeignKey("ville", "id", itemData.optInt("ville_id", -1), "nom");
+                    String typeName = resolveForeignKey("type", "id", itemData.optInt("type_id", -1), "name");
+
+                    // Calculate the difference between current date and "datemiseajour"
+                    String datemiseajour = itemData.optString("datemiseajour", "Unknown date");
+                    String timeDifference = calculateTimeDifference(datemiseajour);
+                    // Map the data to an Item object
+                    String image = itemData.optString("image", ""); // Handle image as a String
+                    String nom = itemData.optString("nom", "Unknown");
+                    String prix = itemData.optString("prix", "N/A");
+
+                    Item item = new Item(image, nom, prix, "No advice", timeDifference, categorieName, regionName, typeName);
+                    items.add(item);
+                    Log.d("Fetching Item", "Parsed item: " + item.getNom());
+                }
+
+                Log.d("Fetching Item", "All items parsed successfully. Updating RecyclerView...");
+
+                // Update the RecyclerView on the main thread
+                runOnUiThread(() -> {
+                    if (items.isEmpty()) {
+                        Toast.makeText(this, "No items found in this location", Toast.LENGTH_SHORT).show();
+                    }
+                    
+                    ItemAdapter updateAdapter = new ItemAdapter(items);
+                    updatesRecyclerView.setAdapter(updateAdapter);
+                    Log.d("Fetching Item", "RecyclerView updated successfully.");
+                });
+            } catch (Exception e) {
+                Log.e("Fetching Item", "Error occurred while fetching items: " + e.getMessage(), e);
+                runOnUiThread(() -> Toast.makeText(this, "Error fetching data", Toast.LENGTH_SHORT).show());
+            }
+        }).start();
+    }
     private void setupRecyclerViews() {
         // Categories RecyclerView
         RecyclerView categoriesRecyclerView = findViewById(R.id.categories_recycler_view);
@@ -288,121 +386,122 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         updatesRecyclerView.setLayoutManager(new LinearLayoutManager(this));
         fetchItemsFromDatabase(updatesRecyclerView);
     }
-      @Override
-      public boolean onNavigationItemSelected(@NonNull MenuItem item) {
-          int id = item.getItemId();
+    @Override
+        public boolean onNavigationItemSelected(@NonNull MenuItem item) {
+            int id = item.getItemId();
 
-          if (id == R.id.nav_home) {
-              Toast.makeText(this, "Home", Toast.LENGTH_SHORT).show();
-          } else if (id == R.id.nav_categories) {
-              Toast.makeText(this, "Categories", Toast.LENGTH_SHORT).show();
-          } else if (id == R.id.nav_locations) {
-              // Open MapActivity
-              Intent intent = new Intent(this, MapActivity.class);
-              startActivity(intent);
-          } else if (id == R.id.nav_contribute) {
-              Toast.makeText(this, "Contribute", Toast.LENGTH_SHORT).show();
-          } else if (id == R.id.nav_profile) {
-              Toast.makeText(this, "Profile", Toast.LENGTH_SHORT).show();
-          } else if (id == R.id.nav_language) {
-              // Instead of directly starting LanguageSettingsActivity, show a dialog
-              showLanguageSelectionDialog();
-          } else if (id == R.id.nav_settings) {
-              Toast.makeText(this, "Settings", Toast.LENGTH_SHORT).show();
-          } else if (id == R.id.nav_logout) {
-              logout();
-          }
+            if (id == R.id.nav_home) {
+                Toast.makeText(this, "Home", Toast.LENGTH_SHORT).show();
+            } else if (id == R.id.nav_categories) {
+                Toast.makeText(this, "Categories", Toast.LENGTH_SHORT).show();
+            } else if (id == R.id.nav_locations) {
+                // Open MapActivity for result to get the selected location
+                openLocationMap();
+            } else if (id == R.id.nav_contribute) {
+                Toast.makeText(this, "Contribute", Toast.LENGTH_SHORT).show();
+            } else if (id == R.id.nav_profile) {
+                Toast.makeText(this, "Profile", Toast.LENGTH_SHORT).show();
+            } else if (id == R.id.nav_language) {
+                showLanguageSelectionDialog();
+            } else if (id == R.id.nav_settings) {
+                Toast.makeText(this, "Settings", Toast.LENGTH_SHORT).show();
+            } else if (id == R.id.nav_logout) {
+                logout();
+            }
 
-          drawerLayout.closeDrawer(GravityCompat.START);
-          return true;
-      }
+            drawerLayout.closeDrawer(GravityCompat.START);
+            return true;
+        }
 
-      /**
+
+    /**
      * Shows a dialog to select language
      */
-      private void showLanguageSelectionDialog() {
-          View dialogView = getLayoutInflater().inflate(R.layout.dialog_language_selection, null);
-          RadioGroup radioGroup = dialogView.findViewById(R.id.radio_group_language);
-          RadioButton radioFrench = dialogView.findViewById(R.id.radio_french);
-          RadioButton radioEnglish = dialogView.findViewById(R.id.radio_english);
-          RadioButton radioArabic = dialogView.findViewById(R.id.radio_arabic);
+    private void showLanguageSelectionDialog() {
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_language_selection, null);
+        RadioGroup radioGroup = dialogView.findViewById(R.id.radio_group_language);
+        RadioButton radioFrench = dialogView.findViewById(R.id.radio_french);
+        RadioButton radioEnglish = dialogView.findViewById(R.id.radio_english);
+        RadioButton radioArabic = dialogView.findViewById(R.id.radio_arabic);
 
-          // Set the current language selection
-          String currentLanguage = LanguageHelper.getLanguage(this);
-          if ("ar".equals(currentLanguage)) {
-              radioArabic.setChecked(true);
-          } else if ("en".equals(currentLanguage)) {
-              radioEnglish.setChecked(true);
-          } else {
-              radioFrench.setChecked(true);
-          }
+        // Set the current language selection
+        String currentLanguage = LanguageHelper.getLanguage(this);
+        if ("ar".equals(currentLanguage)) {
+            radioArabic.setChecked(true);
+        } else if ("en".equals(currentLanguage)) {
+            radioEnglish.setChecked(true);
+        } else {
+            radioFrench.setChecked(true);
+        }
 
-          AlertDialog dialog = new AlertDialog.Builder(this)
-                  .setTitle(R.string.language_settings)
-                  .setView(dialogView)
-                  .setPositiveButton(R.string.ok, (dialogInterface, i) -> {
-                      int selectedId = radioGroup.getCheckedRadioButtonId();
-                      String languageCode;
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle(R.string.language_settings)
+                .setView(dialogView)
+                .setPositiveButton(R.string.ok, (dialogInterface, i) -> {
+                    int selectedId = radioGroup.getCheckedRadioButtonId();
+                    String languageCode;
 
-                      if (selectedId == R.id.radio_arabic) {
-                          languageCode = "ar";
-                      } else if (selectedId == R.id.radio_english) {
-                          languageCode = "en";
-                      } else {
-                          languageCode = "fr";
-                      }
+                    if (selectedId == R.id.radio_arabic) {
+                        languageCode = "ar";
+                    } else if (selectedId == R.id.radio_english) {
+                        languageCode = "en";
+                    } else {
+                        languageCode = "fr";
+                    }
 
-                      if (!languageCode.equals(currentLanguage)) {
-                          LanguageHelper.setLanguage(this, languageCode);
-                          Toast.makeText(this, R.string.language_changed, Toast.LENGTH_SHORT).show();
-                          // Restart the activity to apply language changes
-                          recreateActivity();
-                      }
-                  })
-                  .setNegativeButton(android.R.string.cancel, null)
-                  .create();
+                    if (!languageCode.equals(currentLanguage)) {
+                        LanguageHelper.setLanguage(this, languageCode);
+                        Toast.makeText(this, R.string.language_changed, Toast.LENGTH_SHORT).show();
+                        // Restart the activity to apply language changes
+                        recreateActivity();
+                    }
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .create();
 
-          dialog.show();
-      }
+        dialog.show();
+    }
 
-      /**
+    /**
      * Recreates the activity to apply language changes
      */
-      private void recreateActivity() {
-          Intent intent = getIntent();
-          finish();
-          startActivity(intent);
-          overridePendingTransition(R.anim.fade_in, R.anim.fade_out);
-      }
-                /**
-                 * Handles the logout process
-                 */
-                private void logout() {
-                    // Show a confirmation dialog
-                    new AlertDialog.Builder(this)
-                            .setTitle("Logout")
-                            .setMessage("Are you sure you want to logout?")
-                            .setPositiveButton("Yes", (dialog, which) -> {
-                                // Clear user session data
-                                getSharedPreferences("FairPayPrefs", MODE_PRIVATE)
-                                        .edit()
-                                        .putBoolean("is_logged_in", false)
-                                        .apply();
+    private void recreateActivity() {
+        Intent intent = getIntent();
+        finish();
+        startActivity(intent);
+        overridePendingTransition(R.anim.fade_in, R.anim.fade_out);
+    }
 
-                                // Create an intent to start the LoginActivity
-                                Intent intent = new Intent(MainActivity.this, LoginActivity.class);
-                                // Clear the back stack so the user can't go back to MainActivity after logout
-                                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                                startActivity(intent);
+    /**
+     * Handles the logout process
+     */
+    private void logout() {
+        // Show a confirmation dialog
+        new AlertDialog.Builder(this)
+                .setTitle("Logout")
+                .setMessage("Are you sure you want to logout?")
+                .setPositiveButton("Yes", (dialog, which) -> {
+                    // Clear user session data
+                    getSharedPreferences("FairPayPrefs", MODE_PRIVATE)
+                            .edit()
+                            .putBoolean("is_logged_in", false)
+                            .apply();
 
-                                // Finish the current activity
-                                finish();
+                    // Create an intent to start the LoginActivity
+                    Intent intent = new Intent(MainActivity.this, LoginActivity.class);
+                    // Clear the back stack so the user can't go back to MainActivity after logout
+                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                    startActivity(intent);
 
-                                // Show a toast message
-                                Toast.makeText(MainActivity.this, "Logged out successfully", Toast.LENGTH_SHORT).show();
-                            })
-                            .setNegativeButton("No", null)
-                            .show();
-                }
+                    // Finish the current activity
+                    finish();
 
+                    // Show a toast message
+                    Toast.makeText(MainActivity.this, "Logged out successfully", Toast.LENGTH_SHORT).show();
+                })
+                .setNegativeButton("No", null)
+                .show();
+    }
 }
+
+                    

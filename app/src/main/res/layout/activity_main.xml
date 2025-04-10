@@ -87,6 +87,18 @@
 
                 <!-- Popular Locations Section -->
                 <TextView
+                    android:id="@+id/location_filter_text"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="#E6F3FF"
+                    android:padding="8dp"
+                    android:textAlignment="center"
+                    android:textColor="#0066CC"
+                    android:textStyle="italic"
+                    android:visibility="gone"
+                    android:layout_marginTop="8dp"
+                    android:layout_marginBottom="8dp" />
+                <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="8dp"
@@ -95,6 +107,18 @@
                     android:textSize="18sp"
                     android:textStyle="bold" />
 
+                <TextView
+                    android:id="@+id/location_filter_text"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="#E6F3FF"
+                    android:padding="8dp"
+                    android:textAlignment="center"
+                    android:textColor="#0066CC"
+                    android:textStyle="italic"
+                    android:visibility="gone"
+                    android:layout_marginTop="8dp"
+                    android:layout_marginBottom="8dp" />
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/locations_recycler_view"
                     android:layout_width="match_parent"
