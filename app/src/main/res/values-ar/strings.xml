@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">فيربي المغرب</string>
+    <string name="app_logo">شعار التطبيق</string>
+    <string name="profile">الملف الشخصي</string>
+    <string name="search_icon">أيقونة البحث</string>
+    <string name="search_hint">البحث عن المنتجات أو الخدمات أو المواقع...</string>
+    <string name="categories">الفئات</string>
+    <string name="popular_locations">المواقع الشائعة</string>
+    <string name="recent_updates">آخر تحديثات الأسعار</string>
+    <string name="home">الرئيسية</string>
+    <string name="locations">المواقع</string>
+    <string name="contribute">المساهمة</string>
+    <string name="account">الحساب</string>
+    <string name="settings">الإعدادات</string>
+    <string name="logout">تسجيل الخروج</string>
+    <string name="pay_the_right_price">ادفع السعر المناسب</string>
+    <string name="navigation_drawer_open">فتح قائمة التنقل</string>
+    <string name="navigation_drawer_close">إغلاق قائمة التنقل</string>
+
+    <!-- Login Screen -->
+    <string name="login">تسجيل الدخول</string>
+    <string name="username">اسم المستخدم</string>
+    <string name="password">كلمة المرور</string>
+    <string name="forgot_password">نسيت كلمة المرور؟</string>
+    <string name="no_account">ليس لديك حساب؟</string>
+    <string name="register">التسجيل</string>
+    <string name="login_welcome">مرحبًا بعودتك!</string>
+    <string name="background_pattern">نمط الخلفية</string>
+    <string name="error_username_required">اسم المستخدم مطلوب</string>
+    <string name="error_password_required">كلمة المرور مطلوبة</string>
+    <string name="error_password_too_short">يجب أن تحتوي كلمة المرور على 6 أحرف على الأقل</string>
+
+    <!-- Signup Screen -->
+    <string name="sign_up">التسجيل</string>
+    <string name="create_account">إنشاء حسابك</string>
+    <string name="full_name">الاسم الكامل</string>
+    <string name="email">البريد الإلكتروني</string>
+    <string name="confirm_password">تأكيد كلمة المرور</string>
+    <string name="already_have_account">لديك حساب بالفعل؟</string>
+    <string name="error_name_required">الاسم الكامل مطلوب</string>
+    <string name="error_email_required">البريد الإلكتروني مطلوب</string>
+    <string name="error_invalid_email">يرجى إدخال بريد إلكتروني صالح</string>
+    <string name="error_username_too_short">يجب أن يحتوي اسم المستخدم على 4 أحرف على الأقل</string>
+    <string name="error_confirm_password_required">يرجى تأكيد كلمة المرور</string>
+    <string name="error_passwords_dont_match">كلمات المرور غير متطابقة</string>
+    <string name="signup_success">تم إنشاء الحساب بنجاح!</string>
+    <string name="registering">جاري التسجيل...</string>
+    <string name="error_username_taken">اسم المستخدم مستخدم بالفعل</string>
+    <string name="error_email_taken">البريد الإلكتروني مسجل بالفعل</string>
+    <string name="phone_number">رقم الهاتف</string>
+    <string name="error_phone_required">رقم الهاتف مطلوب</string>
+
+    <string name="product_image">صورة المنتج</string>
+    <string name="location_image">صورة الموقع</string>
+    <string name="category_icon">أيقونة الفئة</string>
+
+    <!-- Forgot Password Screen -->
+    <string name="reset_password">إعادة تعيين كلمة المرور</string>
+    <string name="reset_password_instructions">أدخل بريدك الإلكتروني أدناه وسنرسل لك رابطًا لإعادة تعيين كلمة المرور.</string>
+    <string name="send_reset_email">إرسال بريد إعادة التعيين</string>
+    <string name="remember_password">تتذكر كلمة المرور الخاصة بك؟</string>
+    <string name="reset_email_sent">تم إرسال بريد إعادة التعيين</string>
+    <string name="reset_email_sent_message">تم إرسال بريد إلكتروني مع تعليمات إعادة التعيين إلى عنوان بريدك الإلكتروني.</string>
+    <string name="ok">موافق</string>
+
+    <!-- Language Settings -->
+    <string name="language">اللغة</string>
+    <string name="language_settings">إعدادات اللغة</string>
+    <string name="select_language">اختر اللغة</string>
+    <string name="french">الفرنسية</string>
+    <string name="arabic">العربية</string>
+    <string name="language_changed">تم تغيير اللغة</string>
+    <string name="restart_app">سيتم إعادة تشغيل التطبيق لتطبيق التغييرات</string>
+    <string name="language_change_confirmation">هل أنت متأكد أنك تريد تغيير اللغة؟ سيتم إعادة تشغيل التطبيق لتطبيق التغييرات.</string>
+</resources>
