@@ -87,52 +87,74 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback 
       @Override
       public void onMapReady(@NonNull GoogleMap map) {
           googleMap = map;
-          Log.d("MapLog", "onMapReady: Google Map is ready");
-        
-          // Enable UI settings
-          try {
-              googleMap.setMyLocationEnabled(true);
-              googleMap.getUiSettings().setMyLocationButtonEnabled(true);
-              googleMap.getUiSettings().setZoomControlsEnabled(true);
-          } catch (SecurityException e) {
-              Log.e("MapLog", "Error setting location enabled", e);
-          }
+          Log.d(TAG, "onMapReady: Google Map is ready");
 
-          // Set default location (e.g., Morocco)
-          LatLng defaultLocation = new LatLng(31.7917, -7.0926); // Morocco center
-          googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(defaultLocation, 5));
+          // Add markers for major cities
+          addCityMarkers();
 
           // Enable map click listener
           googleMap.setOnMapClickListener(latLng -> {
               Log.d(TAG, "onMapClick: User clicked on the map at " + latLng.toString());
               selectedLatLng = latLng;
 
-              // Add a marker at the clicked location
-              if (selectedMarker != null) {
-                  selectedMarker.remove();
-                  markers.remove(selectedMarker);
-              }
-            
-              Marker marker = googleMap.addMarker(new MarkerOptions()
-                      .position(latLng)
-                      .title("Selected Location")
-                      .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED)));
-
-              if (marker != null) {
-                  markers.add(marker);
-                  selectedMarker = marker;
-                  Log.d(TAG, "onMapClick: Marker added at " + marker.getPosition().toString());
-                
-                  // Get city name from coordinates
-                  getCityFromCoordinates(latLng);
-              } else {
-                  Log.e(TAG, "onMapClick: Failed to add marker");
-              }
+              // Get city name from coordinates
+              getCityFromCoordinates(latLng);
           });
 
           // Get the user's current location
           getCurrentLocation();
       }
+
+    private void addCityMarkers() {
+        // Add markers for major cities with their database IDs
+        addCityMarker(new LatLng(31.6295, -7.9811), "Marrakech", 1);
+        addCityMarker(new LatLng(33.5731, -7.5898), "Casablanca", 2);
+        addCityMarker(new LatLng(34.0209, -6.8416), "Rabat", 3);
+        addCityMarker(new LatLng(34.0181, -5.0078), "Fes", 4);
+        addCityMarker(new LatLng(35.7595, -5.8340), "Tangier", 5);
+    }
+
+    private void addCityMarker(LatLng position, String cityName, int cityId) {
+        Marker marker = googleMap.addMarker(new MarkerOptions()
+                .position(position)
+                .title(cityName)
+                .snippet("Tap to select")
+                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)));
+        
+        if (marker != null) {
+            marker.setTag(cityId); // Store the city ID in the marker's tag
+            markers.add(marker);
+        }
+        
+        // Set up info window click listener to select the city
+        googleMap.setOnInfoWindowClickListener(clickedMarker -> {
+            if (clickedMarker.getTag() != null) {
+                selectedCityId = (int) clickedMarker.getTag();
+                selectedCityName = clickedMarker.getTitle();
+                selectedLatLng = clickedMarker.getPosition();
+                
+                // Update UI
+                if (selectedLocationText != null) {
+                    selectedLocationText.setText(getString(R.string.selected_location, selectedCityName));
+                    selectedLocationText.setVisibility(View.VISIBLE);
+                }
+                
+                if (confirmButton != null) {
+                    confirmButton.setEnabled(true);
+                }
+                
+                // Update marker appearance
+                if (selectedMarker != null) {
+                    selectedMarker.setIcon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE));
+                }
+                
+                clickedMarker.setIcon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED));
+                selectedMarker = clickedMarker;
+                
+                Toast.makeText(MapActivity.this, "Selected: " + selectedCityName, Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
     private void getCityFromCoordinates(LatLng latLng) {
         if (progressBar != null) {
             progressBar.setVisibility(View.VISIBLE);

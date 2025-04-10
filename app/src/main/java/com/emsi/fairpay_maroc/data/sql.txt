@@ -33,26 +33,28 @@ CREATE TABLE produit_serv (
     nom VARCHAR(255),
     prix FLOAT,
     conseil TEXT,
-    datemiseenjour DATE,
+    datemiseajour DATE,
     categorie_id INT REFERENCES categorie(id),
     ville_id INT REFERENCES ville(id),
-    type_id INT REFERENCES type(id)
+    type_id INT REFERENCES type(id),
+    image VARCHAR(255)
 );
 
 CREATE TABLE categorie (
     id SERIAL PRIMARY KEY,
-    nom VARCHAR(255)
+    nom VARCHAR(255),
+    icon VARCHAR(255)
 );
 
 CREATE TABLE ville (
     id SERIAL PRIMARY KEY,
     nom VARCHAR(255),
-    region_id INT REFERENCES region(id)
 );
 
 CREATE TABLE region (
     id SERIAL PRIMARY KEY,
     nom VARCHAR(255)
+    ville_id INT REFERENCES ville(id)
 );
 
 CREATE TABLE type (

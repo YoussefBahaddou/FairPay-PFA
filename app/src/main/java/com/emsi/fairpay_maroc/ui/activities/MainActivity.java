@@ -13,6 +13,7 @@ import android.widget.RadioButton;
 import android.widget.RadioGroup;
 import android.widget.Button;
 import android.widget.TextView;
+import android.widget.ProgressBar;
 
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
@@ -81,6 +82,8 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             locationFilterText.setText(getString(R.string.filtering_by_location, selectedCityName));
             locationFilterText.setVisibility(View.VISIBLE);
         }
+
+        
 
         // Set up the navigation drawer
         drawerLayout = findViewById(R.id.drawer_layout);
@@ -301,6 +304,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             selectedCityName = data.getStringExtra("city_name");
             
             if (selectedCityId != -1) {
+                Log.d("MainActivity", "Selected city: " + selectedCityName + " (ID: " + selectedCityId + ")");
                 Toast.makeText(this, "Selected location: " + selectedCityName, Toast.LENGTH_SHORT).show();
                 
                 // Update UI to show we're filtering by location
@@ -316,23 +320,30 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         }
     }
 
-    // Add this method to fetch items filtered by location
+    // Modify the fetchItemsWithLocationFilter method to add more logging
     private void fetchItemsWithLocationFilter(int cityId) {
         RecyclerView updatesRecyclerView = findViewById(R.id.updates_recycler_view);
         
+        // Show a loading indicator
+        ProgressBar progressBar = findViewById(R.id.progress_bar);
+        if (progressBar != null) {
+            progressBar.setVisibility(View.VISIBLE);
+        }
+        
         new Thread(() -> {
             try {
-                Log.d("Fetching Item", "Starting to fetch items from the database with location filter...");
+                Log.d("Fetching Item", "Starting to fetch items from the database with location filter for city ID: " + cityId);
                 
                 // Fetch items from the "produit_serv" table with the filter
                 JSONArray itemsArray = SupabaseClient.queryTable("produit_serv", "ville_id", String.valueOf(cityId), "*");
+                Log.d("Fetching Item", "Query returned " + itemsArray.length() + " items");
+                
                 List<Item> items = new ArrayList<>();
-
-                Log.d("Fetching Item", "Successfully fetched data from the database. Parsing items...");
 
                 // Map the JSON data to Item objects
                 for (int i = 0; i < itemsArray.length(); i++) {
                     JSONObject itemData = itemsArray.getJSONObject(i);
+                    Log.d("Fetching Item", "Processing item: " + itemData.toString());
 
                     // Resolve foreign key data
                     String categorieName = resolveForeignKey("categorie", "id", itemData.optInt("categorie_id", -1), "nom");
@@ -342,8 +353,9 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                     // Calculate the difference between current date and "datemiseajour"
                     String datemiseajour = itemData.optString("datemiseajour", "Unknown date");
                     String timeDifference = calculateTimeDifference(datemiseajour);
+                    
                     // Map the data to an Item object
-                    String image = itemData.optString("image", ""); // Handle image as a String
+                    String image = itemData.optString("image", ""); 
                     String nom = itemData.optString("nom", "Unknown");
                     String prix = itemData.optString("prix", "N/A");
 
@@ -356,17 +368,74 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
                 // Update the RecyclerView on the main thread
                 runOnUiThread(() -> {
-                    if (items.isEmpty()) {
-                        Toast.makeText(this, "No items found in this location", Toast.LENGTH_SHORT).show();
+                    if (progressBar != null) {
+                        progressBar.setVisibility(View.GONE);
                     }
                     
-                    ItemAdapter updateAdapter = new ItemAdapter(items);
-                    updatesRecyclerView.setAdapter(updateAdapter);
-                    Log.d("Fetching Item", "RecyclerView updated successfully.");
+                    if (items.isEmpty()) {
+                        Log.w("Fetching Item", "No items found for city ID: " + cityId);
+                        Toast.makeText(this, "No items found in " + selectedCityName + ". Adding sample data...", Toast.LENGTH_SHORT).show();
+                        
+                        // If no items found, add sample data for testing
+                        addSampleDataForCity(cityId);
+                    } else {
+                        ItemAdapter updateAdapter = new ItemAdapter(items);
+                        updatesRecyclerView.setAdapter(updateAdapter);
+                        Log.d("Fetching Item", "RecyclerView updated successfully with " + items.size() + " items.");
+                    }
                 });
             } catch (Exception e) {
                 Log.e("Fetching Item", "Error occurred while fetching items: " + e.getMessage(), e);
-                runOnUiThread(() -> Toast.makeText(this, "Error fetching data", Toast.LENGTH_SHORT).show());
+                runOnUiThread(() -> {
+                    if (progressBar != null) {
+                        progressBar.setVisibility(View.GONE);
+                    }
+                    Toast.makeText(this, "Error fetching data: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                });
+            }
+        }).start();
+    }
+
+    // Add this method to insert sample data for testing
+    private void addSampleDataForCity(int cityId) {
+        new Thread(() -> {
+            try {
+                Log.d("Sample Data", "Adding sample data for city ID: " + cityId);
+                
+                // Create sample products for the selected city
+                String cityName = selectedCityName;
+                if (cityName.isEmpty()) {
+                    cityName = "City " + cityId;
+                }
+                
+                // Add a few sample products
+                for (int i = 1; i <= 5; i++) {
+                    JSONObject product = new JSONObject();
+                    product.put("nom", "Sample Product " + i + " in " + cityName);
+                    product.put("prix", 100 * i);
+                    product.put("conseil", "This is a sample product added for testing");
+                    product.put("datemiseenjour", new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date()));
+                    product.put("categorie_id", (i % 4) + 1); // Cycle through categories 1-4
+                    product.put("ville_id", cityId);
+                    product.put("type_id", (i % 2) + 1); // Alternate between types 1-2
+                    product.put("image", "sample_image_" + i + ".jpg");
+                    
+                    // Insert the product
+                    SupabaseClient.insertIntoTable("produit_serv", product);
+                    Log.d("Sample Data", "Added sample product: " + product.getString("nom"));
+                }
+                
+                // Refresh the data
+                runOnUiThread(() -> {
+                    Toast.makeText(this, "Sample data added. Refreshing...", Toast.LENGTH_SHORT).show();
+                    fetchItemsWithLocationFilter(cityId);
+                });
+                
+            } catch (Exception e) {
+                Log.e("Sample Data", "Error adding sample data: " + e.getMessage(), e);
+                runOnUiThread(() -> {
+                    Toast.makeText(this, "Error adding sample data: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                });
             }
         }).start();
     }
