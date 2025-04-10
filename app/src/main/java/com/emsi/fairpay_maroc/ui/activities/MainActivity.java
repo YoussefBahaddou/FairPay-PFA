@@ -8,8 +8,9 @@ import android.widget.Toast;
 
 import android.app.AlertDialog;
 import android.content.Intent;
-import android.widget.Toast;
-
+import android.view.View;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
 
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
@@ -25,6 +26,7 @@ import com.emsi.fairpay_maroc.R;
 import com.emsi.fairpay_maroc.adapters.CategoryAdapter;
 import com.emsi.fairpay_maroc.adapters.ItemAdapter;
 import com.emsi.fairpay_maroc.adapters.LocationAdapter;
+import com.emsi.fairpay_maroc.utils.LanguageHelper;
 
 import com.emsi.fairpay_maroc.data.SupabaseClient;
 import com.emsi.fairpay_maroc.models.Category;
@@ -35,7 +37,7 @@ import com.google.android.material.navigation.NavigationView;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.emsi.fairpay_maroc.models.Item; // Updated to use Item class
+import com.emsi.fairpay_maroc.models.Item;
 
 import java.util.Map;
 import java.util.concurrent.Executors;
@@ -51,7 +53,6 @@ import org.json.JSONObject;
 import java.io.IOException;
 
 import android.util.Log;
-
 public class MainActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener {
 
     private DrawerLayout drawerLayout;
@@ -287,62 +288,121 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         updatesRecyclerView.setLayoutManager(new LinearLayoutManager(this));
         fetchItemsFromDatabase(updatesRecyclerView);
     }
+      @Override
+      public boolean onNavigationItemSelected(@NonNull MenuItem item) {
+          int id = item.getItemId();
 
-    @Override
-    public boolean onNavigationItemSelected(@NonNull MenuItem item) {
-        int id = item.getItemId();
+          if (id == R.id.nav_home) {
+              Toast.makeText(this, "Home", Toast.LENGTH_SHORT).show();
+          } else if (id == R.id.nav_categories) {
+              Toast.makeText(this, "Categories", Toast.LENGTH_SHORT).show();
+          } else if (id == R.id.nav_locations) {
+              // Open MapActivity
+              Intent intent = new Intent(this, MapActivity.class);
+              startActivity(intent);
+          } else if (id == R.id.nav_contribute) {
+              Toast.makeText(this, "Contribute", Toast.LENGTH_SHORT).show();
+          } else if (id == R.id.nav_profile) {
+              Toast.makeText(this, "Profile", Toast.LENGTH_SHORT).show();
+          } else if (id == R.id.nav_language) {
+              // Instead of directly starting LanguageSettingsActivity, show a dialog
+              showLanguageSelectionDialog();
+          } else if (id == R.id.nav_settings) {
+              Toast.makeText(this, "Settings", Toast.LENGTH_SHORT).show();
+          } else if (id == R.id.nav_logout) {
+              logout();
+          }
 
-        if (id == R.id.nav_home) {
-            Toast.makeText(this, "Home", Toast.LENGTH_SHORT).show();
-        } else if (id == R.id.nav_categories) {
-            Toast.makeText(this, "Categories", Toast.LENGTH_SHORT).show();
-        } else if (id == R.id.nav_locations) {
-            // Open MapActivity
-            Intent intent = new Intent(this, MapActivity.class);
-            startActivity(intent);
-        } else if (id == R.id.nav_contribute) {
-            Toast.makeText(this, "Contribute", Toast.LENGTH_SHORT).show();
-        } else if (id == R.id.nav_profile) {
-            Toast.makeText(this, "Profile", Toast.LENGTH_SHORT).show();
-        } else if (id == R.id.nav_language) {
-            Intent intent = new Intent(this, LanguageSettingsActivity.class);
-            startActivity(intent);
-        } else if (id == R.id.nav_settings) {
-            Toast.makeText(this, "Settings", Toast.LENGTH_SHORT).show();
-        } else if (id == R.id.nav_logout) {
-            logout();
-        }
+          drawerLayout.closeDrawer(GravityCompat.START);
+          return true;
+      }
 
-        drawerLayout.closeDrawer(GravityCompat.START);
-        return true;
-    }
-
-    /**
-     * Handles the logout process
+      /**
+     * Shows a dialog to select language
      */
-    private void logout() {
-        // Show a confirmation dialog
-        new AlertDialog.Builder(this)
-                .setTitle("Logout")
-                .setMessage("Are you sure you want to logout?")
-                .setPositiveButton("Yes", (dialog, which) -> {
-                    // Clear any user session data here
-                    // For example, clear SharedPreferences
+      private void showLanguageSelectionDialog() {
+          View dialogView = getLayoutInflater().inflate(R.layout.dialog_language_selection, null);
+          RadioGroup radioGroup = dialogView.findViewById(R.id.radio_group_language);
+          RadioButton radioFrench = dialogView.findViewById(R.id.radio_french);
+          RadioButton radioEnglish = dialogView.findViewById(R.id.radio_english);
+          RadioButton radioArabic = dialogView.findViewById(R.id.radio_arabic);
 
-                    // Create an intent to start the LoginActivity
-                    Intent intent = new Intent(MainActivity.this, LoginActivity.class);
-                    // Clear the back stack so the user can't go back to MainActivity after logout
-                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                    startActivity(intent);
+          // Set the current language selection
+          String currentLanguage = LanguageHelper.getLanguage(this);
+          if ("ar".equals(currentLanguage)) {
+              radioArabic.setChecked(true);
+          } else if ("en".equals(currentLanguage)) {
+              radioEnglish.setChecked(true);
+          } else {
+              radioFrench.setChecked(true);
+          }
 
-                    // Finish the current activity
-                    finish();
+          AlertDialog dialog = new AlertDialog.Builder(this)
+                  .setTitle(R.string.language_settings)
+                  .setView(dialogView)
+                  .setPositiveButton(R.string.ok, (dialogInterface, i) -> {
+                      int selectedId = radioGroup.getCheckedRadioButtonId();
+                      String languageCode;
 
-                    // Show a toast message
-                    Toast.makeText(MainActivity.this, "Logged out successfully", Toast.LENGTH_SHORT).show();
-                })
-                .setNegativeButton("No", null)
-                .show();
-    }
+                      if (selectedId == R.id.radio_arabic) {
+                          languageCode = "ar";
+                      } else if (selectedId == R.id.radio_english) {
+                          languageCode = "en";
+                      } else {
+                          languageCode = "fr";
+                      }
+
+                      if (!languageCode.equals(currentLanguage)) {
+                          LanguageHelper.setLanguage(this, languageCode);
+                          Toast.makeText(this, R.string.language_changed, Toast.LENGTH_SHORT).show();
+                          // Restart the activity to apply language changes
+                          recreateActivity();
+                      }
+                  })
+                  .setNegativeButton(android.R.string.cancel, null)
+                  .create();
+
+          dialog.show();
+      }
+
+      /**
+     * Recreates the activity to apply language changes
+     */
+      private void recreateActivity() {
+          Intent intent = getIntent();
+          finish();
+          startActivity(intent);
+          overridePendingTransition(R.anim.fade_in, R.anim.fade_out);
+      }
+                /**
+                 * Handles the logout process
+                 */
+                private void logout() {
+                    // Show a confirmation dialog
+                    new AlertDialog.Builder(this)
+                            .setTitle("Logout")
+                            .setMessage("Are you sure you want to logout?")
+                            .setPositiveButton("Yes", (dialog, which) -> {
+                                // Clear user session data
+                                getSharedPreferences("FairPayPrefs", MODE_PRIVATE)
+                                        .edit()
+                                        .putBoolean("is_logged_in", false)
+                                        .apply();
+
+                                // Create an intent to start the LoginActivity
+                                Intent intent = new Intent(MainActivity.this, LoginActivity.class);
+                                // Clear the back stack so the user can't go back to MainActivity after logout
+                                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                                startActivity(intent);
+
+                                // Finish the current activity
+                                finish();
+
+                                // Show a toast message
+                                Toast.makeText(MainActivity.this, "Logged out successfully", Toast.LENGTH_SHORT).show();
+                            })
+                            .setNegativeButton("No", null)
+                            .show();
+                }
 
 }

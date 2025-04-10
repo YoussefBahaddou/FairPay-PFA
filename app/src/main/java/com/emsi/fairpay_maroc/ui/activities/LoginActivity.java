@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.widget.CheckBox;
 import android.widget.ImageButton;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
@@ -32,57 +33,101 @@ public class LoginActivity extends AppCompatActivity {
     private MaterialButton btnLogin;
     private ImageButton btnLanguage;
     private boolean isLoading = false;
+    private CheckBox cbRememberMe;
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_login);
+      @Override
+      protected void onCreate(Bundle savedInstanceState) {
+          super.onCreate(savedInstanceState);
+        
+          // Check if user is already logged in
+          if (checkUserLoggedIn()) {
+              // User is already logged in, navigate to MainActivity
+              navigateToMainActivity();
+              return;
+          }
+        
+          setContentView(R.layout.activity_login);
 
-        // Initialize views
-        tilUsername = findViewById(R.id.til_username);
-        tilPassword = findViewById(R.id.til_password);
-        etUsername = findViewById(R.id.et_username);
-        etPassword = findViewById(R.id.et_password);
-        btnLogin = findViewById(R.id.btn_login);
-        btnLanguage = findViewById(R.id.btn_language);
+          // Initialize views
+          tilUsername = findViewById(R.id.til_username);
+          tilPassword = findViewById(R.id.til_password);
+          etUsername = findViewById(R.id.et_username);
+          etPassword = findViewById(R.id.et_password);
+          btnLogin = findViewById(R.id.btn_login);
+          btnLanguage = findViewById(R.id.btn_language);
+          cbRememberMe = findViewById(R.id.cb_remember_me);
 
-        // Set up language button click listener
-        btnLanguage.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                showLanguageSelectionDialog();
-            }
-        });
+          // Set up language button click listener
+          btnLanguage.setOnClickListener(new View.OnClickListener() {
+              @Override
+              public void onClick(View v) {
+                  showLanguageSelectionDialog();
+              }
+          });
 
-        // Set up login button click listener
-        btnLogin.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (validateInputs() && !isLoading) {
-                    loginUser();
-                }
-            }
-        });
+          // Set up login button click listener
+          btnLogin.setOnClickListener(new View.OnClickListener() {
+              @Override
+              public void onClick(View v) {
+                  if (validateInputs() && !isLoading) {
+                      loginUser();
+                  }
+              }
+          });
 
-        // Set up register text click listener
-        findViewById(R.id.tv_register).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Intent intent = new Intent(LoginActivity.this, SignupActivity.class);
-                startActivity(intent);
-            }
-        });
+          // Set up register text click listener
+          findViewById(R.id.tv_register).setOnClickListener(new View.OnClickListener() {
+              @Override
+              public void onClick(View v) {
+                  Intent intent = new Intent(LoginActivity.this, SignupActivity.class);
+                  startActivity(intent);
+              }
+          });
 
-        // Set up forgot password text click listener
-        findViewById(R.id.tv_forgot_password).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Intent intent = new Intent(LoginActivity.this, ForgotPasswordActivity.class);
-                startActivity(intent);
-            }
-        });
+          // Set up forgot password text click listener
+          findViewById(R.id.tv_forgot_password).setOnClickListener(new View.OnClickListener() {
+              @Override
+              public void onClick(View v) {
+                  Intent intent = new Intent(LoginActivity.this, ForgotPasswordActivity.class);
+                  startActivity(intent);
+              }
+          });
+      }
+
+    private void saveUserSession(JSONObject user) {
+        try {
+            boolean rememberMe = cbRememberMe.isChecked();
+            
+            getSharedPreferences("FairPayPrefs", MODE_PRIVATE)
+                    .edit()
+                    .putInt("user_id", user.getInt("id"))
+                    .putString("username", user.getString("username"))
+                    .putString("nom", user.getString("nom"))
+                    .putString("prenom", user.getString("prenom"))
+                    .putInt("role_id", user.getInt("role_id"))
+                    .putBoolean("is_logged_in", true)
+                    .putBoolean("remember_me", rememberMe)
+                    .apply();
+        } catch (JSONException e) {
+            Log.e(TAG, "Error saving user session: " + e.getMessage(), e);
+        }
     }
+      /**
+     * Checks if a user is already logged in by checking SharedPreferences
+     */
+      private boolean checkUserLoggedIn() {
+          return getSharedPreferences("FairPayPrefs", MODE_PRIVATE)
+                  .getBoolean("is_logged_in", false);
+      }
 
+      /**
+     * Navigates to the MainActivity
+     */
+      private void navigateToMainActivity() {
+          Intent intent = new Intent(LoginActivity.this, MainActivity.class);
+          startActivity(intent);
+          finish();
+      }
     private void loginUser() {
         isLoading = true;
         btnLogin.setEnabled(false);
@@ -154,32 +199,20 @@ public class LoginActivity extends AppCompatActivity {
         }).start();
     }
 
-    private void saveUserSession(JSONObject user) {
-        try {
-            getSharedPreferences("FairPayPrefs", MODE_PRIVATE)
-                    .edit()
-                    .putInt("user_id", user.getInt("id"))
-                    .putString("username", user.getString("username"))
-                    .putString("nom", user.getString("nom"))
-                    .putString("prenom", user.getString("prenom"))
-                    .putInt("role_id", user.getInt("role_id"))
-                    .putBoolean("is_logged_in", true)
-                    .apply();
-        } catch (JSONException e) {
-            Log.e(TAG, "Error saving user session: " + e.getMessage(), e);
-        }
-    }
 
     private void showLanguageSelectionDialog() {
         View dialogView = getLayoutInflater().inflate(R.layout.dialog_language_selection, null);
         RadioGroup radioGroup = dialogView.findViewById(R.id.radio_group_language);
         RadioButton radioFrench = dialogView.findViewById(R.id.radio_french);
+        RadioButton radioEnglish = dialogView.findViewById(R.id.radio_english);
         RadioButton radioArabic = dialogView.findViewById(R.id.radio_arabic);
 
         // Set the current language selection
         String currentLanguage = LanguageHelper.getLanguage(this);
         if ("ar".equals(currentLanguage)) {
             radioArabic.setChecked(true);
+        } else if ("en".equals(currentLanguage)) {
+            radioEnglish.setChecked(true);
         } else {
             radioFrench.setChecked(true);
         }
@@ -192,6 +225,8 @@ public class LoginActivity extends AppCompatActivity {
 
                     if (selectedId == R.id.radio_arabic) {
                         languageCode = "ar";
+                    } else if (selectedId == R.id.radio_english) {
+                        languageCode = "en";
                     } else {
                         languageCode = "fr";
                     }

@@ -40,19 +40,17 @@ public class BaseActivity extends AppCompatActivity {
         // Re-apply layout direction
         applyLayoutDirection();
     }
-
-    /**
+      /**
      * Apply the correct layout direction based on the current language
      */
-    private void applyLayoutDirection() {
-        String languageCode = LanguageHelper.getLanguage(this);
-        if ("ar".equals(languageCode)) {
-            getWindow().getDecorView().setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
-        } else {
-            getWindow().getDecorView().setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
-        }
-    }
-
+      private void applyLayoutDirection() {
+          String languageCode = LanguageHelper.getLanguage(this);
+          if ("ar".equals(languageCode)) {
+              getWindow().getDecorView().setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+          } else {
+              getWindow().getDecorView().setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
+          }
+      }
     /**
      * Restart the current activity to apply language changes
      */

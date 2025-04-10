@@ -5,56 +5,51 @@ import android.content.SharedPreferences;
 import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.os.Build;
-import android.os.LocaleList;
 
 import java.util.Locale;
 
 public class LanguageHelper {
-    private static final String SELECTED_LANGUAGE = "selected_language";
 
-    /**
-     * Get the currently selected language from SharedPreferences
-     */
-    public static String getLanguage(Context context) {
-        SharedPreferences preferences = context.getSharedPreferences("app_preferences", Context.MODE_PRIVATE);
-        // Default to French if no language is selected
-        return preferences.getString(SELECTED_LANGUAGE, "fr");
-    }
-
-    /**
-     * Set the selected language in SharedPreferences
-     */
     public static void setLanguage(Context context, String languageCode) {
-        SharedPreferences preferences = context.getSharedPreferences("app_preferences", Context.MODE_PRIVATE);
-        SharedPreferences.Editor editor = preferences.edit();
-        editor.putString(SELECTED_LANGUAGE, languageCode);
+        Locale locale = new Locale(languageCode);
+        Locale.setDefault(locale);
+        
+        Resources resources = context.getResources();
+        Configuration config = resources.getConfiguration();
+        config.setLocale(locale);
+        
+        resources.updateConfiguration(config, resources.getDisplayMetrics());
+        
+        // Save the selected language
+        SharedPreferences.Editor editor = context.getSharedPreferences("LanguagePrefs", Context.MODE_PRIVATE).edit();
+        editor.putString("language_code", languageCode);
         editor.apply();
     }
 
+    public static String getLanguage(Context context) {
+        SharedPreferences prefs = context.getSharedPreferences("LanguagePrefs", Context.MODE_PRIVATE);
+        return prefs.getString("language_code", "fr"); // Default to French
+    }
+    
     /**
-     * Update the locale of the given context
+     * Updates the locale for the given context and returns a new context with the updated locale
+     * This method is used for attachBaseContext in Application class
+     * 
+     * @param context The context to update
+     * @param language The language code to set
+     * @return A new context with the updated locale
      */
-    public static Context updateLocale(Context context, String languageCode) {
-        Locale locale = new Locale(languageCode);
+    public static Context updateLocale(Context context, String language) {
+        Locale locale = new Locale(language);
         Locale.setDefault(locale);
-
-        Resources resources = context.getResources();
-        Configuration configuration = new Configuration(resources.getConfiguration());
-
+        
+        Configuration configuration = context.getResources().getConfiguration();
+        configuration.setLocale(locale);
+        
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            // For API 24+
-            LocaleList localeList = new LocaleList(locale);
-            LocaleList.setDefault(localeList);
-            configuration.setLocales(localeList);
-            return context.createConfigurationContext(configuration);
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
-            // For API 17-23
-            configuration.setLocale(locale);
             return context.createConfigurationContext(configuration);
         } else {
-            // For API 16 and below
-            configuration.locale = locale;
-            resources.updateConfiguration(configuration, resources.getDisplayMetrics());
+            context.getResources().updateConfiguration(configuration, context.getResources().getDisplayMetrics());
             return context;
         }
     }
