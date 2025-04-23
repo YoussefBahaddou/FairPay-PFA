@@ -1,10 +1,11 @@
 package com.emsi.fairpay_maroc.ui.activities;
 
 import android.Manifest;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.location.Location;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -13,34 +14,32 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
-import androidx.fragment.app.FragmentActivity;
+import androidx.core.content.ContextCompat;
 
 import com.emsi.fairpay_maroc.R;
 import com.emsi.fairpay_maroc.utils.GeolocationHelper;
-import com.google.android.gms.common.ConnectionResult;
-import com.google.android.gms.common.GoogleApiAvailability;
-import com.google.android.gms.location.FusedLocationProviderClient;
-import com.google.android.gms.location.LocationServices;
-import com.google.android.gms.maps.CameraUpdateFactory;
-import com.google.android.gms.maps.GoogleMap;
-import com.google.android.gms.maps.MapView;
-import com.google.android.gms.maps.OnMapReadyCallback;
-import com.google.android.gms.maps.model.BitmapDescriptorFactory;
-import com.google.android.gms.maps.model.LatLng;
-import com.google.android.gms.maps.model.Marker;
-import com.google.android.gms.maps.model.MarkerOptions;
+
+import org.osmdroid.api.IMapController;
+import org.osmdroid.config.Configuration;
+import org.osmdroid.events.MapEventsReceiver;
+import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
+import org.osmdroid.util.GeoPoint;
+import org.osmdroid.views.MapView;
+import org.osmdroid.views.overlay.MapEventsOverlay;
+import org.osmdroid.views.overlay.Marker;
+import org.osmdroid.views.overlay.infowindow.InfoWindow;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class MapActivity extends FragmentActivity implements OnMapReadyCallback {
+public class MapActivity extends AppCompatActivity {
 
     private static final String TAG = "MapLog";
+    private static final int PERMISSION_REQUEST_CODE = 1;
     
     private MapView mapView;
-    private GoogleMap googleMap;
-    private FusedLocationProviderClient fusedLocationClient;
     private ProgressBar progressBar;
     private TextView selectedLocationText;
     private Button confirmButton;
@@ -48,21 +47,25 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback 
     private int selectedCityId = -1;
     private String selectedCityName = "";
     private List<Marker> markers = new ArrayList<>();
-    private LatLng selectedLatLng;
+    private GeoPoint selectedGeoPoint;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        
+        // Initialize OSMdroid configuration
+        Context ctx = getApplicationContext();
+        Configuration.getInstance().load(ctx, PreferenceManager.getDefaultSharedPreferences(ctx));
+        Configuration.getInstance().setUserAgentValue(getPackageName());
+        
         setContentView(R.layout.activity_map);
 
-        if (checkGooglePlayServices()) {
-            // Initialize map
-            mapView = findViewById(R.id.map_view);
-            mapView.onCreate(savedInstanceState);
-            mapView.getMapAsync(this);
-        } else {
-            Toast.makeText(this, "Google Play Services not available", Toast.LENGTH_SHORT).show();
-        }
+        // Request permissions
+        requestPermissionsIfNecessary(new String[] {
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION,
+                Manifest.permission.WRITE_EXTERNAL_STORAGE
+        });
 
         // Initialize views
         progressBar = findViewById(R.id.progress_bar);
@@ -76,62 +79,69 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback 
             confirmButton.setOnClickListener(v -> confirmLocationSelection());
         }
 
-        Log.d(TAG, "onCreate: Initializing MapView and FusedLocationProviderClient");
-
+        // Initialize map
         mapView = findViewById(R.id.map_view);
-        mapView.onCreate(savedInstanceState);
-        mapView.getMapAsync(this);
-
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
+        setupMap();
     }
-      @Override
-      public void onMapReady(@NonNull GoogleMap map) {
-          googleMap = map;
-          Log.d(TAG, "onMapReady: Google Map is ready");
-
-          // Add markers for major cities
-          addCityMarkers();
-
-          // Enable map click listener
-          googleMap.setOnMapClickListener(latLng -> {
-              Log.d(TAG, "onMapClick: User clicked on the map at " + latLng.toString());
-              selectedLatLng = latLng;
-
-              // Get city name from coordinates
-              getCityFromCoordinates(latLng);
-          });
-
-          // Get the user's current location
-          getCurrentLocation();
-      }
-
-    private void addCityMarkers() {
-        // Add markers for major cities with their database IDs
-        addCityMarker(new LatLng(31.6295, -7.9811), "Marrakech", 1);
-        addCityMarker(new LatLng(33.5731, -7.5898), "Casablanca", 2);
-        addCityMarker(new LatLng(34.0209, -6.8416), "Rabat", 3);
-        addCityMarker(new LatLng(34.0181, -5.0078), "Fes", 4);
-        addCityMarker(new LatLng(35.7595, -5.8340), "Tangier", 5);
+    
+    private void setupMap() {
+        mapView.setTileSource(TileSourceFactory.MAPNIK);
+        mapView.setMultiTouchControls(true);
+        
+        // Set initial map position to Morocco
+        IMapController mapController = mapView.getController();
+        mapController.setZoom(6.0);
+        GeoPoint startPoint = new GeoPoint(31.7917, -7.0926); // Morocco center
+        mapController.setCenter(startPoint);
+        
+        // Add markers for major cities
+        addCityMarkers();
+        
+        // Set up map click listener
+        setupMapClickListener();
     }
 
-    private void addCityMarker(LatLng position, String cityName, int cityId) {
-        Marker marker = googleMap.addMarker(new MarkerOptions()
-                .position(position)
-                .title(cityName)
-                .snippet("Tap to select")
-                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)));
+    private void setupMapClickListener() {
+        MapEventsReceiver mapEventsReceiver = new MapEventsReceiver() {
+            @Override
+            public boolean singleTapConfirmedHelper(GeoPoint p) {
+                selectedGeoPoint = p;
+                getCityFromCoordinates(p);
+                return true;
+            }
+
+            @Override
+            public boolean longPressHelper(GeoPoint p) {
+                return false;
+            }
+        };
         
-        if (marker != null) {
-            marker.setTag(cityId); // Store the city ID in the marker's tag
-            markers.add(marker);
-        }
+        MapEventsOverlay mapEventsOverlay = new MapEventsOverlay(mapEventsReceiver);
+        mapView.getOverlays().add(mapEventsOverlay);
+    }
+
+    private void addCityMarker(GeoPoint position, String cityName, int cityId) {
+        Marker marker = new Marker(mapView);
+        marker.setPosition(position);
+        marker.setTitle(cityName);
+        marker.setSnippet("Tap to select");
+        marker.setIcon(ContextCompat.getDrawable(this, R.drawable.ic_location_blue));
+        marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
         
-        // Set up info window click listener to select the city
-        googleMap.setOnInfoWindowClickListener(clickedMarker -> {
-            if (clickedMarker.getTag() != null) {
-                selectedCityId = (int) clickedMarker.getTag();
-                selectedCityName = clickedMarker.getTitle();
-                selectedLatLng = clickedMarker.getPosition();
+        // Store the city ID in the marker's related object
+        marker.setRelatedObject(cityId);
+        
+        // Set up info window click listener
+        marker.setOnMarkerClickListener((marker1, mapView) -> {
+            if (marker1.isInfoWindowShown()) {
+                marker1.closeInfoWindow();
+            } else {
+                marker1.showInfoWindow();
+                
+                // Update selected city
+                selectedCityId = (int) marker1.getRelatedObject();
+                selectedCityName = marker1.getTitle();
+                selectedGeoPoint = marker1.getPosition();
                 
                 // Update UI
                 if (selectedLocationText != null) {
@@ -145,24 +155,29 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback 
                 
                 // Update marker appearance
                 if (selectedMarker != null) {
-                    selectedMarker.setIcon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE));
+                    selectedMarker.setIcon(ContextCompat.getDrawable(this, R.drawable.ic_location_blue));
                 }
                 
-                clickedMarker.setIcon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED));
-                selectedMarker = clickedMarker;
+                marker1.setIcon(ContextCompat.getDrawable(this, R.drawable.ic_location_red));
+                selectedMarker = marker1;
                 
                 Toast.makeText(MapActivity.this, "Selected: " + selectedCityName, Toast.LENGTH_SHORT).show();
             }
+            return true;
         });
+        
+        mapView.getOverlays().add(marker);
+        markers.add(marker);
     }
-    private void getCityFromCoordinates(LatLng latLng) {
+    
+    private void getCityFromCoordinates(GeoPoint geoPoint) {
         if (progressBar != null) {
             progressBar.setVisibility(View.VISIBLE);
         }
         
-        GeolocationHelper.getCurrentLocationAndCity(this, new GeolocationHelper.LocationCallback() {
+        GeolocationHelper.getCityFromGeoPoint(this, geoPoint, new GeolocationHelper.LocationCallback() {
             @Override
-            public void onLocationResult(LatLng location, String cityName, int cityId) {
+            public void onLocationResult(GeoPoint location, String cityName, int cityId) {
                 if (progressBar != null) {
                     progressBar.setVisibility(View.GONE);
                 }
@@ -192,55 +207,6 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback 
         });
     }
 
-    private void getCurrentLocation() {
-        Log.d(TAG, "getCurrentLocation: Checking location permissions");
-
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
-            ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            Log.w(TAG, "getCurrentLocation: Location permissions not granted, requesting permissions");
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 1);
-            return;
-        }
-
-        Log.d(TAG, "getCurrentLocation: Permissions granted, fetching last known location");
-
-        fusedLocationClient.getLastLocation().addOnSuccessListener(location -> {
-            if (location != null) {
-                Log.d(TAG, "getCurrentLocation: Location fetched successfully - Lat: " + location.getLatitude() + ", Lng: " + location.getLongitude());
-
-                // Move the camera to the user's current location
-                LatLng currentLatLng = new LatLng(location.getLatitude(), location.getLongitude());
-                googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(currentLatLng, 12));
-                
-                Marker marker = googleMap.addMarker(new MarkerOptions()
-                        .position(currentLatLng)
-                        .title("Your Location")
-                        .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE)));
-                
-                if (marker != null) {
-                    markers.add(marker);
-                }
-            } else {
-                Log.w(TAG, "getCurrentLocation: Location is null");
-            }
-        }).addOnFailureListener(e -> Log.e(TAG, "getCurrentLocation: Failed to fetch location", e));
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-
-        if (requestCode == 1) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                Log.d(TAG, "onRequestPermissionsResult: Location permission granted");
-                getCurrentLocation();
-            } else {
-                Log.w(TAG, "onRequestPermissionsResult: Location permission denied");
-                Toast.makeText(this, "Location permission is required to use this feature.", Toast.LENGTH_SHORT).show();
-            }
-        }
-    }
-
     private void useCurrentLocation() {
         if (progressBar != null) {
             progressBar.setVisibility(View.VISIBLE);
@@ -248,7 +214,7 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback 
         
         GeolocationHelper.getCurrentLocationAndCity(this, new GeolocationHelper.LocationCallback() {
             @Override
-            public void onLocationResult(LatLng location, String cityName, int cityId) {
+            public void onLocationResult(GeoPoint location, String cityName, int cityId) {
                 if (progressBar != null) {
                     progressBar.setVisibility(View.GONE);
                 }
@@ -256,7 +222,7 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback 
                 // Update the selected city
                 selectedCityId = cityId;
                 selectedCityName = cityName;
-                selectedLatLng = location;
+                selectedGeoPoint = location;
                 
                 // Update UI
                 if (selectedLocationText != null) {
@@ -269,23 +235,25 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback 
                 }
                 
                 // Move camera to the location
-                googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(location, 10f));
+                IMapController mapController = mapView.getController();
+                mapController.animateTo(selectedGeoPoint);
+                mapController.setZoom(12.0);
                 
                 // Clear previous markers
                 if (selectedMarker != null) {
-                    selectedMarker.remove();
+                    mapView.getOverlays().remove(selectedMarker);
                 }
                 
                 // Add new marker
-                Marker marker = googleMap.addMarker(new MarkerOptions()
-                        .position(location)
-                        .title(cityName)
-                        .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED)));
+                Marker marker = new Marker(mapView);
+                marker.setPosition(selectedGeoPoint);
+                marker.setTitle(cityName);
+                marker.setIcon(ContextCompat.getDrawable(MapActivity.this, R.drawable.ic_location_red));
+                marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
                 
-                if (marker != null) {
-                    selectedMarker = marker;
-                    markers.add(marker);
-                }
+                mapView.getOverlays().add(marker);
+                selectedMarker = marker;
+                markers.add(marker);
                 
                 Toast.makeText(MapActivity.this, "Nearest city: " + cityName, Toast.LENGTH_SHORT).show();
             }
@@ -312,40 +280,38 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback 
         }
     }
 
-    private void checkLocationPermission() {
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
-            ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            
-            ActivityCompat.requestPermissions(this, 
-                new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, 
-                1);
-        } else {
-            // Permissions already granted, initialize map
-            if (googleMap != null) {
-                try {
-                    googleMap.setMyLocationEnabled(true);
-                } catch (SecurityException e) {
-                    Log.e("MapLog", "Error enabling location", e);
+    private void requestPermissionsIfNecessary(String[] permissions) {
+        ArrayList<String> permissionsToRequest = new ArrayList<>();
+        for (String permission : permissions) {
+            if (ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED) {
+                permissionsToRequest.add(permission);
+            }
+        }
+                if (permissionsToRequest.size() > 0) {
+            ActivityCompat.requestPermissions(
+                    this,
+                    permissionsToRequest.toArray(new String[0]),
+                    PERMISSION_REQUEST_CODE);
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        
+        if (requestCode == PERMISSION_REQUEST_CODE) {
+            for (int i = 0; i < permissions.length; i++) {
+                if (Manifest.permission.ACCESS_FINE_LOCATION.equals(permissions[i]) ||
+                    Manifest.permission.ACCESS_COARSE_LOCATION.equals(permissions[i])) {
+                    if (grantResults[i] == PackageManager.PERMISSION_GRANTED) {
+                        // Permission granted, try to get current location
+                        useCurrentLocation();
+                    } else {
+                        Toast.makeText(this, "Location permission is required for better experience", Toast.LENGTH_LONG).show();
+                    }
                 }
             }
         }
-    }    
-      private boolean checkGooglePlayServices() {
-          GoogleApiAvailability googleApiAvailability = GoogleApiAvailability.getInstance();
-          int result = googleApiAvailability.isGooglePlayServicesAvailable(this);
-          if (result != ConnectionResult.SUCCESS) {
-              if (googleApiAvailability.isUserResolvableError(result)) {
-                  googleApiAvailability.getErrorDialog(this, result, 2404).show();
-              }
-              return false;
-          }
-          return true;
-      }
-
-    @Override
-    public void onStart() {
-        super.onStart();
-        mapView.onStart();  // Add this method
     }
 
     @Override
@@ -361,26 +327,8 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback 
     }
 
     @Override
-    public void onStop() {
-        super.onStop();
-        mapView.onStop();  // Add this method
-    }
-
-    @Override
     protected void onDestroy() {
         super.onDestroy();
-        mapView.onDestroy();
-    }
-
-    @Override
-    protected void onSaveInstanceState(@NonNull Bundle outState) {
-        super.onSaveInstanceState(outState);
-        mapView.onSaveInstanceState(outState);
-    }
-
-    @Override
-    public void onLowMemory() {
-        super.onLowMemory();
-        mapView.onLowMemory();
+        mapView.onDetach();
     }
 }

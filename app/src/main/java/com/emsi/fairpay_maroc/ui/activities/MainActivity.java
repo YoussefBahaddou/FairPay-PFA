@@ -116,8 +116,11 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             }
         });
 
-        // Set up the recycler views with dummy data
-        setupRecyclerViews();
+        // Set up the recycler views
+        setupRecyclerViewsWithoutItems();
+        
+        // Load saved location and fetch items accordingly
+        loadSavedLocation();
 
         // Handle back button press
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
@@ -131,6 +134,23 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 }
             }
         });
+    }
+
+    // Add this method to set up RecyclerViews without fetching items yet
+    private void setupRecyclerViewsWithoutItems() {
+        // Categories RecyclerView
+        RecyclerView categoriesRecyclerView = findViewById(R.id.categories_recycler_view);
+        categoriesRecyclerView.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+        fetchCategoriesFromDatabase(categoriesRecyclerView);
+
+        // Locations RecyclerView
+        RecyclerView locationsRecyclerView = findViewById(R.id.locations_recycler_view);
+        locationsRecyclerView.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+        fetchLocationsFromDatabase(locationsRecyclerView);
+
+        // Updates RecyclerView - just set up the layout manager
+        RecyclerView updatesRecyclerView = findViewById(R.id.updates_recycler_view);
+        updatesRecyclerView.setLayoutManager(new LinearLayoutManager(this));
     }
 
     private void fetchItemsFromDatabase(RecyclerView updatesRecyclerView) {
@@ -307,12 +327,11 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 Log.d("MainActivity", "Selected city: " + selectedCityName + " (ID: " + selectedCityId + ")");
                 Toast.makeText(this, "Selected location: " + selectedCityName, Toast.LENGTH_SHORT).show();
                 
+                // Save the selected location
+                saveSelectedLocation(selectedCityId, selectedCityName);
+                
                 // Update UI to show we're filtering by location
-                TextView locationFilterText = findViewById(R.id.location_filter_text);
-                if (locationFilterText != null) {
-                    locationFilterText.setText(getString(R.string.filtering_by_location, selectedCityName));
-                    locationFilterText.setVisibility(View.VISIBLE);
-                }
+                updateLocationFilterUI();
                 
                 // Refresh the items with the selected location filter
                 fetchItemsWithLocationFilter(selectedCityId);
@@ -469,7 +488,11 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             } else if (id == R.id.nav_contribute) {
                 Toast.makeText(this, "Contribute", Toast.LENGTH_SHORT).show();
             } else if (id == R.id.nav_profile) {
-                Toast.makeText(this, "Profile", Toast.LENGTH_SHORT).show();
+                // Launch the ProfileActivity
+                Intent intent = new Intent(MainActivity.this, ProfileActivity.class);
+                startActivity(intent);
+                // Apply custom animation
+                overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left);
             } else if (id == R.id.nav_language) {
                 showLanguageSelectionDialog();
             } else if (id == R.id.nav_settings) {
@@ -570,6 +593,70 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 })
                 .setNegativeButton("No", null)
                 .show();
+    }
+
+    private void saveSelectedLocation(int cityId, String cityName) {
+        // Save the selected location to SharedPreferences
+        getSharedPreferences("FairPayPrefs", MODE_PRIVATE)
+            .edit()
+            .putInt("selected_city_id", cityId)
+            .putString("selected_city_name", cityName)
+            .apply();
+        
+        Log.d("MainActivity", "Saved location: " + cityName + " (ID: " + cityId + ")");
+    }
+
+    private void loadSavedLocation() {
+        // Load the saved location from SharedPreferences
+        selectedCityId = getSharedPreferences("FairPayPrefs", MODE_PRIVATE)
+            .getInt("selected_city_id", -1);
+        selectedCityName = getSharedPreferences("FairPayPrefs", MODE_PRIVATE)
+            .getString("selected_city_name", "");
+        
+        if (selectedCityId != -1) {
+            Log.d("MainActivity", "Loaded saved location: " + selectedCityName + " (ID: " + selectedCityId + ")");
+            
+            // Update UI to show we're filtering by location
+            updateLocationFilterUI();
+            
+            // Fetch items with the saved location filter
+            fetchItemsWithLocationFilter(selectedCityId);
+        } else {
+            // No saved location, fetch all items
+            fetchItemsFromDatabase(findViewById(R.id.updates_recycler_view));
+        }
+    }
+
+    private void updateLocationFilterUI() {
+        TextView locationFilterText = findViewById(R.id.location_filter_text);
+        if (locationFilterText != null) {
+            if (selectedCityId != -1) {
+                locationFilterText.setText(getString(R.string.filtering_by_location, selectedCityName));
+                locationFilterText.setVisibility(View.VISIBLE);
+            } else {
+                locationFilterText.setVisibility(View.GONE);
+            }
+        }
+    }
+
+    private void clearLocationFilter() {
+        // Clear the saved location
+        getSharedPreferences("FairPayPrefs", MODE_PRIVATE)
+            .edit()
+            .remove("selected_city_id")
+            .remove("selected_city_name")
+            .apply();
+        
+        selectedCityId = -1;
+        selectedCityName = "";
+        
+        // Update UI
+        updateLocationFilterUI();
+        
+        // Fetch all items
+        fetchItemsFromDatabase(findViewById(R.id.updates_recycler_view));
+        
+        Toast.makeText(this, "Location filter cleared", Toast.LENGTH_SHORT).show();
     }
 }
 

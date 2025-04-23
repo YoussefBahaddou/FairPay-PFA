@@ -267,4 +267,26 @@ public class LoginActivity extends AppCompatActivity {
 
         return isValid;
     }
+
+    private void handleLoginSuccess(JSONObject user) {
+        try {
+            // Get the user ID
+            int userId = user.getInt("id");
+            
+            // Save login state and user ID
+            SharedPreferences.Editor editor = getSharedPreferences("FairPayPrefs", MODE_PRIVATE).edit();
+            editor.putBoolean("is_logged_in", true);
+            editor.putInt("user_id", userId);
+            editor.apply();
+            
+            // Navigate to MainActivity
+            Intent intent = new Intent(LoginActivity.this, MainActivity.class);
+            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            startActivity(intent);
+            finish();
+        } catch (JSONException e) {
+            Log.e(TAG, "Error parsing user data: " + e.getMessage());
+            Toast.makeText(this, "Login failed", Toast.LENGTH_SHORT).show();
+        }
+    }
 }

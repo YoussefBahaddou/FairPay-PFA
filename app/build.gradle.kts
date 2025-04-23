@@ -43,8 +43,10 @@ dependencies {
     implementation("com.github.bumptech.glide:glide:4.15.1")
 
     // Maps
-    implementation ("com.google.android.gms:play-services-maps:18.1.0")
-    implementation ("com.google.android.gms:play-services-location:21.0.1")
+    implementation ("org.osmdroid:osmdroid-android:6.1.14")
+    implementation ("org.osmdroid:osmdroid-wms:6.1.14")
+    implementation ("org.osmdroid:osmdroid-mapsforge:6.1.14")
+    implementation ("org.osmdroid:osmdroid-geopackage:6.1.14")
 
     // Testing
     testImplementation(libs.junit)

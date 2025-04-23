@@ -81,11 +81,37 @@
     <string name="language_change_confirmation">Are you sure you want to change the language? The app will restart to apply changes.</string>
     <string name="select_location">Select a location</string>
     <string name="no_location_selected">No location selected</string>
+    <string name="use_current_location">Use Current Location</string>
     <string name="confirm_location">Confirm Location</string>
-    <string name="selected_location">Selected: %1$s</string>
+    <string name="selected_location">Selected location: %1$s</string>
     <string name="filtering_by_location">Showing prices in: %1$s</string>
     <string name="back">Back</string>
     <string name="show_on_map">Show on Map</string>
     <string name="use_my_location">Use My Location</string>
     <string name="confirm">Confirm</string>
+
+    <!-- Profile Activity -->
+    <string name="personal_information">Personal Information</string>
+    <string name="first_name">First Name</string>
+    <string name="last_name">Last Name</string>
+    <string name="phone">Phone</string>
+    <string name="change_password">Change Password</string>
+    <string name="current_password">Current Password</string>
+    <string name="new_password">New Password</string>
+    <string name="confirm_new_password">Confirm New Password</string>
+    <string name="save_changes">Save Changes</string>
+    <string name="error_loading_profile">Error loading profile</string>
+    <string name="user_not_found">User not found</string>
+    <string name="all_fields_required">All fields are required</string>
+    <string name="invalid_email">Invalid email address</string>
+    <string name="invalid_phone">Invalid phone number</string>
+    <string name="current_password_required">Current password is required</string>
+    <string name="new_password_required">New password is required</string>
+    <string name="password_too_short">Password must be at least 6 characters</string>
+    <string name="passwords_dont_match">Passwords don\'t match</string>
+    <string name="incorrect_current_password">Incorrect current password</string>
+    <string name="username_already_taken">Username is already taken</string>
+    <string name="email_already_taken">Email is already taken</string>
+    <string name="error_saving_changes">Error saving changes</string>
+    <string name="profile_updated_successfully">Profile updated successfully</string>
 </resources>

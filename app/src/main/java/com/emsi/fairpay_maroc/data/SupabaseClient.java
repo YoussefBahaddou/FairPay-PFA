@@ -181,4 +181,42 @@ public class SupabaseClient {
         }
     }
 
+    /**
+     * Update a record in a table
+     * @param path The path to the record (table?column=eq.value)
+     * @param data The data to update as JSONObject
+     * @return The updated data as JSONObject
+     */
+    public static JSONObject updateRecord(String path, JSONObject data) throws IOException, JSONException {
+        String url = SUPABASE_URL + "/rest/v1/" + path;
+        RequestBody body = RequestBody.create(data.toString(), JSON);
+        
+        Log.d(TAG, "Update URL: " + url);
+        Log.d(TAG, "Update Data: " + data.toString());
+        
+        Request request = new Request.Builder()
+                .url(url)
+                .addHeader("apikey", SUPABASE_KEY)
+                .addHeader("Authorization", "Bearer " + SUPABASE_KEY)
+                .addHeader("Content-Type", "application/json")
+                .addHeader("Prefer", "return=representation")
+                .patch(body)
+                .build();
+        
+        try (Response response = getHttpClient().newCall(request).execute()) {
+            String responseData = response.body().string();
+            Log.d(TAG, "Response: " + responseData);
+            
+            if (!response.isSuccessful()) {
+                Log.e(TAG, "Error response: " + responseData);
+                throw new IOException("Unexpected code " + response + ": " + responseData);
+            }
+            
+            JSONArray resultArray = new JSONArray(responseData);
+            return resultArray.getJSONObject(0);
+        } catch (Exception e) {
+            Log.e(TAG, "Error updating record: " + e.getMessage(), e);
+            throw e;
+        }
+    }
 }
