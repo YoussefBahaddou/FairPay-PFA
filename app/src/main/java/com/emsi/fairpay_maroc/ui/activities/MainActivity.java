@@ -41,6 +41,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.HashSet;
 
 import com.emsi.fairpay_maroc.models.Item;
 
@@ -59,11 +61,14 @@ import java.io.IOException;
 import android.util.Log;
 
 public class MainActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener {
-
+    private int getCurrentUserId() {
+        return getSharedPreferences("FairPayPrefs", MODE_PRIVATE).getInt("user_id", -1);
+    }
     private DrawerLayout drawerLayout;
     private static final int REQUEST_LOCATION_SELECTION = 1001;
     private int selectedCityId = -1;
     private String selectedCityName = "";
+    private ItemAdapter itemAdapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -148,6 +153,9 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 for (int i = 0; i < itemsArray.length(); i++) {
                     JSONObject itemData = itemsArray.getJSONObject(i);
 
+                    // Extract the ID
+                    int id = itemData.optInt("id", -1); // Default to -1 if the ID is missing
+
                     // Resolve foreign key data
                     String categorieName = resolveForeignKey("categorie", "id", itemData.optInt("categorie_id", -1), "nom");
                     String regionName = resolveForeignKey("ville", "id", itemData.optInt("ville_id", -1), "nom");
@@ -162,19 +170,23 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                     String nom = itemData.optString("nom", "Unknown");
                     String prix = itemData.optString("prix", "N/A");
 
-                    Item item = new Item(image, nom, prix, "No advice", timeDifference, categorieName, regionName, typeName);
+                    // Use the updated constructor with the `id` field
+                    Item item = new Item(id, image, nom, prix, "No advice", timeDifference, categorieName, regionName, typeName);
                     items.add(item);
-                    Log.d("Fetching Item", "Parsed item: " + item.getNom());
+                    Log.d("Fetching Item", "Parsed item: " + item.getNom() + " (ID: " + item.getId() + ")");
                 }
 
                 Log.d("Fetching Item", "All items parsed successfully. Updating RecyclerView...");
 
                 // Update the RecyclerView on the main thread
                 runOnUiThread(() -> {
-                    ItemAdapter updateAdapter = new ItemAdapter(items);
-                    updatesRecyclerView.setAdapter(updateAdapter);
+                    itemAdapter = new ItemAdapter(items, getCurrentUserId(), false); // Set isFavoritesView to false
+                    updatesRecyclerView.setAdapter(itemAdapter);
                     Log.d("Fetching Item", "RecyclerView updated successfully.");
                 });
+
+                // Fetch favorites for the user
+                fetchFavoritesForUser();
             } catch (Exception e) {
                 Log.e("Fetching Item", "Error occurred while fetching items: " + e.getMessage(), e);
                 runOnUiThread(() -> Toast.makeText(this, "Error fetching data", Toast.LENGTH_SHORT).show());
@@ -320,30 +332,32 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         }
     }
 
-    // Modify the fetchItemsWithLocationFilter method to add more logging
     private void fetchItemsWithLocationFilter(int cityId) {
         RecyclerView updatesRecyclerView = findViewById(R.id.updates_recycler_view);
-        
+
         // Show a loading indicator
         ProgressBar progressBar = findViewById(R.id.progress_bar);
         if (progressBar != null) {
             progressBar.setVisibility(View.VISIBLE);
         }
-        
+
         new Thread(() -> {
             try {
                 Log.d("Fetching Item", "Starting to fetch items from the database with location filter for city ID: " + cityId);
-                
+
                 // Fetch items from the "produit_serv" table with the filter
                 JSONArray itemsArray = SupabaseClient.queryTable("produit_serv", "ville_id", String.valueOf(cityId), "*");
                 Log.d("Fetching Item", "Query returned " + itemsArray.length() + " items");
-                
+
                 List<Item> items = new ArrayList<>();
 
                 // Map the JSON data to Item objects
                 for (int i = 0; i < itemsArray.length(); i++) {
                     JSONObject itemData = itemsArray.getJSONObject(i);
                     Log.d("Fetching Item", "Processing item: " + itemData.toString());
+
+                    // Extract the ID
+                    int id = itemData.optInt("id", -1);
 
                     // Resolve foreign key data
                     String categorieName = resolveForeignKey("categorie", "id", itemData.optInt("categorie_id", -1), "nom");
@@ -353,13 +367,13 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                     // Calculate the difference between current date and "datemiseajour"
                     String datemiseajour = itemData.optString("datemiseajour", "Unknown date");
                     String timeDifference = calculateTimeDifference(datemiseajour);
-                    
+
                     // Map the data to an Item object
-                    String image = itemData.optString("image", ""); 
+                    String image = itemData.optString("image", "");
                     String nom = itemData.optString("nom", "Unknown");
                     String prix = itemData.optString("prix", "N/A");
 
-                    Item item = new Item(image, nom, prix, "No advice", timeDifference, categorieName, regionName, typeName);
+                    Item item = new Item(id, image, nom, prix, "No advice", timeDifference, categorieName, regionName, typeName);
                     items.add(item);
                     Log.d("Fetching Item", "Parsed item: " + item.getNom());
                 }
@@ -371,19 +385,15 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                     if (progressBar != null) {
                         progressBar.setVisibility(View.GONE);
                     }
-                    
-                    if (items.isEmpty()) {
-                        Log.w("Fetching Item", "No items found for city ID: " + cityId);
-                        Toast.makeText(this, "No items found in " + selectedCityName + ". Adding sample data...", Toast.LENGTH_SHORT).show();
-                        
-                        // If no items found, add sample data for testing
-                        addSampleDataForCity(cityId);
-                    } else {
-                        ItemAdapter updateAdapter = new ItemAdapter(items);
-                        updatesRecyclerView.setAdapter(updateAdapter);
-                        Log.d("Fetching Item", "RecyclerView updated successfully with " + items.size() + " items.");
-                    }
+
+                    int userId = getCurrentUserId(); // Fetch the current user ID
+                    itemAdapter = new ItemAdapter(items, userId);
+                    updatesRecyclerView.setAdapter(itemAdapter);
+                    Log.d("Fetching Item", "RecyclerView updated successfully with " + items.size() + " items.");
                 });
+
+                // Fetch favorites for the user
+                fetchFavoritesForUser();
             } catch (Exception e) {
                 Log.e("Fetching Item", "Error occurred while fetching items: " + e.getMessage(), e);
                 runOnUiThread(() -> {
@@ -396,49 +406,37 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         }).start();
     }
 
-    // Add this method to insert sample data for testing
-    private void addSampleDataForCity(int cityId) {
+    private void fetchFavoritesForUser() {
         new Thread(() -> {
             try {
-                Log.d("Sample Data", "Adding sample data for city ID: " + cityId);
-                
-                // Create sample products for the selected city
-                String cityName = selectedCityName;
-                if (cityName.isEmpty()) {
-                    cityName = "City " + cityId;
+                // Query the "favoris" table for the current user's favorites
+                JSONArray favoritesArray = SupabaseClient.queryTable(
+                    "favoris",
+                    "utilisateur_id",
+                    String.valueOf(getCurrentUserId()),
+                    "produit_serv_id"
+                );
+
+                // Extract the IDs of the favorite items
+                Set<Integer> favoriteIds = new HashSet<>();
+                for (int i = 0; i < favoritesArray.length(); i++) {
+                    JSONObject favorite = favoritesArray.getJSONObject(i);
+                    favoriteIds.add(favorite.getInt("produit_serv_id"));
                 }
-                
-                // Add a few sample products
-                for (int i = 1; i <= 5; i++) {
-                    JSONObject product = new JSONObject();
-                    product.put("nom", "Sample Product " + i + " in " + cityName);
-                    product.put("prix", 100 * i);
-                    product.put("conseil", "This is a sample product added for testing");
-                    product.put("datemiseenjour", new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date()));
-                    product.put("categorie_id", (i % 4) + 1); // Cycle through categories 1-4
-                    product.put("ville_id", cityId);
-                    product.put("type_id", (i % 2) + 1); // Alternate between types 1-2
-                    product.put("image", "sample_image_" + i + ".jpg");
-                    
-                    // Insert the product
-                    SupabaseClient.insertIntoTable("produit_serv", product);
-                    Log.d("Sample Data", "Added sample product: " + product.getString("nom"));
-                }
-                
-                // Refresh the data
+
+                // Pass the favorite IDs to the adapter on the main thread
                 runOnUiThread(() -> {
-                    Toast.makeText(this, "Sample data added. Refreshing...", Toast.LENGTH_SHORT).show();
-                    fetchItemsWithLocationFilter(cityId);
+                    if (itemAdapter != null) {
+                        itemAdapter.setFavoriteIds(favoriteIds);
+                    }
                 });
-                
+
             } catch (Exception e) {
-                Log.e("Sample Data", "Error adding sample data: " + e.getMessage(), e);
-                runOnUiThread(() -> {
-                    Toast.makeText(this, "Error adding sample data: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                });
+                Log.e("MainActivity", "Error fetching favorites: " + e.getMessage(), e);
             }
         }).start();
     }
+
     private void setupRecyclerViews() {
         // Categories RecyclerView
         RecyclerView categoriesRecyclerView = findViewById(R.id.categories_recycler_view);
@@ -456,31 +454,34 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         fetchItemsFromDatabase(updatesRecyclerView);
     }
     @Override
-        public boolean onNavigationItemSelected(@NonNull MenuItem item) {
-            int id = item.getItemId();
+    public boolean onNavigationItemSelected(@NonNull MenuItem item) {
+        int id = item.getItemId();
 
-            if (id == R.id.nav_home) {
-                Toast.makeText(this, "Home", Toast.LENGTH_SHORT).show();
-            } else if (id == R.id.nav_categories) {
-                Toast.makeText(this, "Categories", Toast.LENGTH_SHORT).show();
-            } else if (id == R.id.nav_locations) {
-                // Open MapActivity for result to get the selected location
-                openLocationMap();
-            } else if (id == R.id.nav_contribute) {
-                Toast.makeText(this, "Contribute", Toast.LENGTH_SHORT).show();
-            } else if (id == R.id.nav_profile) {
-                Toast.makeText(this, "Profile", Toast.LENGTH_SHORT).show();
-            } else if (id == R.id.nav_language) {
-                showLanguageSelectionDialog();
-            } else if (id == R.id.nav_settings) {
-                Toast.makeText(this, "Settings", Toast.LENGTH_SHORT).show();
-            } else if (id == R.id.nav_logout) {
-                logout();
-            }
-
-            drawerLayout.closeDrawer(GravityCompat.START);
-            return true;
+        if (id == R.id.nav_home) {
+            Toast.makeText(this, "Home", Toast.LENGTH_SHORT).show();
+        } else if (id == R.id.nav_categories) {
+            Toast.makeText(this, "Categories", Toast.LENGTH_SHORT).show();
+        } else if (id == R.id.nav_locations) {
+            // Open MapActivity for result to get the selected location
+            openLocationMap();
+        } else if (id == R.id.nav_contribute) {
+            Toast.makeText(this, "Contribute", Toast.LENGTH_SHORT).show();
+        } else if (id == R.id.nav_profile) {
+            Toast.makeText(this, "Profile", Toast.LENGTH_SHORT).show();
+        } else if (id == R.id.nav_language) {
+            showLanguageSelectionDialog();
+        } else if (id == R.id.nav_settings) {
+            Toast.makeText(this, "Settings", Toast.LENGTH_SHORT).show();
+        } else if (id == R.id.nav_logout) {
+            logout();
+        } else if (id == R.id.nav_favorites) {
+            Intent intent = new Intent(this, FavoritesActivity.class);
+            startActivity(intent);
         }
+
+        drawerLayout.closeDrawer(GravityCompat.START);
+        return true;
+    }
 
 
     /**
@@ -573,4 +574,4 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     }
 }
 
-                    
+

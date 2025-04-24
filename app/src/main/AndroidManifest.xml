@@ -19,7 +19,7 @@
         <!-- Add this meta-data tag for the Google Maps API key -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="YOUR_API_KEY" />
+            android:value="AIzaSyC2CXDAE4w0IbZyNUp1UvEbzKOoV4PcLb8" />
 
         <!-- SplashActivity is now the launcher activity -->
         <activity
@@ -41,7 +41,7 @@
         <activity
             android:name=".ui.activities.MainActivity"
             android:exported="false" />
-
+        <activity android:name=".ui.activities.FavoritesActivity" />
         <activity
             android:name=".ui.activities.SignupActivity"
             android:exported="false" />

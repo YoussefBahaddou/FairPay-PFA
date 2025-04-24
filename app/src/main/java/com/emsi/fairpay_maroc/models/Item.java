@@ -1,16 +1,18 @@
 package com.emsi.fairpay_maroc.models;
 
 public class Item {
+    private int id; // Add this field
     private String image;
     private String nom;
     private String prix;
     private String conseil;
     private String datemiseajour;
-    private String categorieName; 
-    private String regionName;    
-    private String typeName;      
+    private String categorieName;
+    private String regionName;
+    private String typeName;
 
-    public Item(String image, String nom, String prix, String conseil, String datemiseajour, String categorieName, String regionName, String typeName) {
+    public Item(int id, String image, String nom, String prix, String conseil, String datemiseajour, String categorieName, String regionName, String typeName) {
+        this.id = id;
         this.image = image;
         this.nom = nom;
         this.prix = prix;
@@ -19,6 +21,15 @@ public class Item {
         this.categorieName = categorieName;
         this.regionName = regionName;
         this.typeName = typeName;
+    }
+
+    // Getter and Setter for id
+    public int getId() {
+        return id;
+    }
+
+    public void setId(int id) {
+        this.id = id;
     }
 
     public String getImage() {

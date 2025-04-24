@@ -17,6 +17,10 @@
             android:id="@+id/nav_contribute"
             android:icon="@drawable/ic_add"
             android:title="@string/contribute" />
+        <item
+            android:id="@+id/nav_favorites"
+            android:icon="@drawable/ic_heart_empty"
+            android:title="@string/favorites" />
     </group>
 
     <item android:title="@string/account">

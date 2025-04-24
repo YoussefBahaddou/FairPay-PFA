@@ -55,6 +55,7 @@
     <string name="phone_number">Phone Number</string>
     <string name="error_phone_required">Phone number is required</string>
 
+    <string name="favorites">Favoris</string>
 
     <string name="product_image">Product Image</string>
     <string name="location_image">Location Image</string>

@@ -38,7 +38,33 @@ public class SupabaseClient {
         }
         return httpClient;
     }
-    
+    public static void deleteFromTable(String tableName, String columnName, String value) throws Exception {
+        String url = SUPABASE_URL + "/rest/v1/" + tableName + "?" + columnName + "=eq." + value;
+
+        Log.d(TAG, "Delete URL: " + url);
+
+        Request request = new Request.Builder()
+                .url(url)
+                .addHeader("apikey", SUPABASE_KEY)
+                .addHeader("Authorization", "Bearer " + SUPABASE_KEY)
+                .delete()
+                .build();
+
+        try (Response response = getHttpClient().newCall(request).execute()) {
+            String responseData = response.body().string();
+            Log.d(TAG, "Response: " + responseData);
+
+            if (!response.isSuccessful()) {
+                throw new IOException("Unexpected code " + response + ": " + responseData);
+            }
+
+            Log.d(TAG, "Row deleted successfully from table: " + tableName);
+        } catch (Exception e) {
+            Log.e(TAG, "Error deleting from table: " + e.getMessage(), e);
+            throw e;
+        }
+    }
+
     /**
      * Query data from a table with filters
      * @param table The table name
@@ -86,31 +112,30 @@ public class SupabaseClient {
     public static JSONObject insertIntoTable(String table, JSONObject data) throws IOException, JSONException {
         String url = SUPABASE_URL + "/rest/v1/" + table;
         RequestBody body = RequestBody.create(data.toString(), JSON);
-        
+
         Log.d(TAG, "Insert URL: " + url);
         Log.d(TAG, "Insert Data: " + data.toString());
-        
+
         Request request = new Request.Builder()
                 .url(url)
                 .addHeader("apikey", SUPABASE_KEY)
                 .addHeader("Authorization", "Bearer " + SUPABASE_KEY)
                 .addHeader("Content-Type", "application/json")
                 .addHeader("Prefer", "return=representation")
-                .addHeader("Prefer", "resolution=ignore-duplicates,return=representation")
                 .post(body)
                 .build();
-        
+
         try (Response response = getHttpClient().newCall(request).execute()) {
             String responseData = response.body().string();
             Log.d(TAG, "Response: " + responseData);
-            
+
             if (!response.isSuccessful()) {
                 Log.e(TAG, "Error response: " + responseData);
                 throw new IOException("Unexpected code " + response + ": " + responseData);
             }
-            
+
             JSONArray resultArray = new JSONArray(responseData);
-            return resultArray.getJSONObject(0);
+            return resultArray.getJSONObject(0); // Return the first inserted row
         } catch (Exception e) {
             Log.e(TAG, "Error inserting into table: " + e.getMessage(), e);
             throw e;
