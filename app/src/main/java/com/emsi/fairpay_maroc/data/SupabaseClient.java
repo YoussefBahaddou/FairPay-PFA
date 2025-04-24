@@ -7,6 +7,9 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
 import okhttp3.MediaType;
@@ -16,12 +19,13 @@ import okhttp3.RequestBody;
 import okhttp3.Response;
 
 public class SupabaseClient {
-    public static final String SUPABASE_URL = "https://wpglbagvinlmthlzxgyy.supabase.co";
-    public static final String SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndwZ2xiYWd2aW5sbXRobHp4Z3l5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDExNzYyMjksImV4cCI6MjA1Njc1MjIyOX0.ala-XwZ9Zh-6UOQBIruJ76kYRg7MINzIvNjDgk8sMfw";
     private static final String TAG = "SupabaseClient";
-    private static OkHttpClient httpClient;
-
+    // Replace with your actual Supabase URL and key
+    private static final String SUPABASE_URL = "https://wpglbagvinlmthlzxgyy.supabase.co";
+    private static final String SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndwZ2xiYWd2aW5sbXRobHp4Z3l5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDExNzYyMjksImV4cCI6MjA1Njc1MjIyOX0.ala-XwZ9Zh-6UOQBIruJ76kYRg7MINzIvNjDgk8sMfw";
     public static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
+    
+    private static OkHttpClient httpClient;
     
     private SupabaseClient() {
         // Private constructor to enforce singleton pattern
@@ -39,17 +43,30 @@ public class SupabaseClient {
     }
     
     /**
-     * Query a table with a complex filter
+     * Query a table in Supabase
+     * 
      * @param table The table name
-     * @param filter The filter string (e.g., "status=neq.pending&ville_id=eq.1")
-     * @param select The columns to select
+     * @param column The column to filter by (can be null for no filter)
+     * @param value The value to filter by (can be null for no filter)
+     * @param select The columns to select (comma-separated)
      * @return JSONArray of results
+     * @throws IOException If an error occurs
+     * @throws Exception If any other error occurs
      */
-    public static JSONArray queryTableWithFilter(String table, String filter, String select) throws IOException, JSONException {
-        String url = SUPABASE_URL + "/rest/v1/" + table + "?select=" + select;
+    public static JSONArray queryTable(String table, String column, String value, String select) throws IOException, Exception {
+        // Make sure we have the correct URL format with /rest/v1/
+        String url = SUPABASE_URL;
+        if (!url.endsWith("/")) {
+            url += "/";
+        }
+        if (!url.endsWith("rest/v1/")) {
+            url += "rest/v1/";
+        }
         
-        if (filter != null && !filter.isEmpty()) {
-            url += "&" + filter;
+        url += table + "?select=" + select;
+        
+        if (column != null && value != null) {
+            url += "&" + column + "=eq." + value;
         }
         
         Log.d(TAG, "Query URL: " + url);
@@ -76,13 +93,66 @@ public class SupabaseClient {
     }
     
     /**
-     * Insert data into a table
+     * Query a table in Supabase with a custom filter
+     * 
      * @param table The table name
-     * @param data The data to insert as JSONObject
-     * @return The inserted data as JSONObject
+     * @param filter The custom filter to apply
+     * @param select The columns to select (comma-separated)
+     * @return JSONArray of results
+     * @throws IOException If an error occurs
+     * @throws Exception If any other error occurs
      */
-    public static JSONObject insertIntoTable(String table, JSONObject data) throws IOException, JSONException {
-        String url = SUPABASE_URL + "/rest/v1/" + table;
+    public static JSONArray queryTableWithFilter(String table, String filter, String select) throws IOException, Exception {
+        // Make sure we have the correct URL format with /rest/v1/
+        String url = SUPABASE_URL;
+        if (!url.endsWith("/")) {
+            url += "/";
+        }
+        if (!url.endsWith("rest/v1/")) {
+            url += "rest/v1/";
+        }
+        
+        url += table + "?select=" + select;
+        
+        if (filter != null && !filter.isEmpty()) {
+            url += "&" + filter;
+        }
+        
+        Log.d(TAG, "Query URL with filter: " + url);
+        
+        Request request = new Request.Builder()
+                .url(url)
+                .addHeader("apikey", SUPABASE_KEY)
+                .addHeader("Authorization", "Bearer " + SUPABASE_KEY)
+                .build();
+        
+        try (Response response = getHttpClient().newCall(request).execute()) {
+            String responseData = response.body().string();
+            Log.d(TAG, "Response: " + responseData);
+            
+            if (!response.isSuccessful()) {
+                throw new IOException("Unexpected code " + response + ": " + responseData);
+            }
+            
+            return new JSONArray(responseData);
+        } catch (Exception e) {
+            Log.e(TAG, "Error querying table with filter: " + e.getMessage(), e);
+            throw e;
+        }
+    }
+    
+    /**
+     * Insert data into a table
+     * 
+     * @param table The table name
+     * @param data The data to insert
+     * @return JSONObject of the inserted row
+     * @throws IOException If an error occurs
+     * @throws Exception If any other error occurs
+     */
+    public static JSONObject insertIntoTable(String table, JSONObject data) throws IOException, Exception {
+        String url = SUPABASE_URL + table;
+        
         RequestBody body = RequestBody.create(data.toString(), JSON);
         
         Log.d(TAG, "Insert URL: " + url);
@@ -116,11 +186,13 @@ public class SupabaseClient {
     }
     
     /**
-     * Check if a role exists by ID
+     * Check if a role exists
+     * 
      * @param roleId The role ID to check
      * @return true if the role exists, false otherwise
+     * @throws Exception If an error occurs
      */
-    public static boolean roleExists(int roleId) throws IOException, JSONException {
+    public static boolean roleExists(int roleId) throws Exception {
         try {
             JSONArray results = queryTable("role", "id", String.valueOf(roleId), "id");
             return results.length() > 0;
@@ -131,13 +203,15 @@ public class SupabaseClient {
     }
 
     /**
-     * Check if a value exists in a column
+     * Check if a value exists in a table
+     * 
      * @param table The table name
      * @param column The column to check
-     * @param value The value to check for
+     * @param value The value to check
      * @return true if the value exists, false otherwise
+     * @throws Exception If an error occurs
      */
-    public static boolean valueExists(String table, String column, String value) throws IOException, JSONException {
+    public static boolean valueExists(String table, String column, String value) throws Exception {
         try {
             JSONArray results = queryTable(table, column, value, "id");
             return results.length() > 0;
@@ -364,6 +438,49 @@ public class SupabaseClient {
             return result != null;
         } catch (Exception e) {
             Log.e(TAG, "Error updating product status: " + e.getMessage(), e);
+            return false;
+        }
+    }
+
+    /**
+     * Check if a column exists in a table
+     * @param table The table name
+     * @param column The column name to check
+     * @return true if the column exists, false otherwise
+     */
+    public static boolean columnExists(String table, String column) {
+        try {
+            // Query the table structure
+            String url = SUPABASE_URL;
+            if (!url.endsWith("/")) {
+                url += "/";
+            }
+            url += "rest/v1/" + table + "?limit=1";
+            
+            Request request = new Request.Builder()
+                    .url(url)
+                    .addHeader("apikey", SUPABASE_KEY)
+                    .addHeader("Authorization", "Bearer " + SUPABASE_KEY)
+                    .build();
+            
+            try (Response response = getHttpClient().newCall(request).execute()) {
+                if (!response.isSuccessful()) {
+                    return false;
+                }
+                
+                String responseData = response.body().string();
+                JSONArray result = new JSONArray(responseData);
+                
+                // If we got at least one row, check if the column exists
+                if (result.length() > 0) {
+                    JSONObject row = result.getJSONObject(0);
+                    return row.has(column);
+                }
+                
+                return false;
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error checking if column exists: " + e.getMessage(), e);
             return false;
         }
     }

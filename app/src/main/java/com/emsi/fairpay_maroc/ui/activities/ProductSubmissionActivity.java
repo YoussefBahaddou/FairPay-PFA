@@ -159,69 +159,90 @@ public class ProductSubmissionActivity extends BaseActivity {
     }
     
     private void loadCategories() throws JSONException, IOException {
-        JSONArray categoriesArray = SupabaseClient.queryTable("categorie", null, null, "*");
-        List<String> categories = new ArrayList<>();
-        
-        for (int i = 0; i < categoriesArray.length(); i++) {
-            JSONObject category = categoriesArray.getJSONObject(i);
-            int id = category.getInt("id");
-            String name = category.getString("nom");
-            categories.add(name);
-            categoryMap.put(name, id);
+        try {
+            JSONArray categoriesArray = SupabaseClient.queryTable("categorie", null, null, "*");
+            List<String> categories = new ArrayList<>();
+            
+            for (int i = 0; i < categoriesArray.length(); i++) {
+                JSONObject category = categoriesArray.getJSONObject(i);
+                int id = category.getInt("id");
+                String name = category.getString("nom");
+                categories.add(name);
+                categoryMap.put(name, id);
+            }
+            
+            runOnUiThread(() -> {
+                ArrayAdapter<String> adapter = new ArrayAdapter<>(
+                        ProductSubmissionActivity.this,
+                        android.R.layout.simple_spinner_item,
+                        categories);
+                adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+                spinnerCategory.setAdapter(adapter);
+            });
+        } catch (Exception e) {
+            Log.e("ProductSubmission", "Error loading categories: " + e.getMessage(), e);
+            runOnUiThread(() -> {
+                Toast.makeText(this, "Failed to load categories", Toast.LENGTH_SHORT).show();
+            });
         }
-        
-        runOnUiThread(() -> {
-            ArrayAdapter<String> adapter = new ArrayAdapter<>(
-                    ProductSubmissionActivity.this,
-                    android.R.layout.simple_spinner_item,
-                    categories);
-            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-            spinnerCategory.setAdapter(adapter);
-        });
     }
     
     private void loadLocations() throws JSONException, IOException {
-        JSONArray locationsArray = SupabaseClient.queryTable("ville", null, null, "*");
-        List<String> locations = new ArrayList<>();
-        
-        for (int i = 0; i < locationsArray.length(); i++) {
-            JSONObject location = locationsArray.getJSONObject(i);
-            int id = location.getInt("id");
-            String name = location.getString("nom");
-            locations.add(name);
-            locationMap.put(name, id);
+        try {
+            JSONArray locationsArray = SupabaseClient.queryTable("ville", null, null, "*");
+            List<String> locations = new ArrayList<>();
+            
+            for (int i = 0; i < locationsArray.length(); i++) {
+                JSONObject location = locationsArray.getJSONObject(i);
+                int id = location.getInt("id");
+                String name = location.getString("nom");
+                locations.add(name);
+                locationMap.put(name, id);
+            }
+            
+            runOnUiThread(() -> {
+                ArrayAdapter<String> adapter = new ArrayAdapter<>(
+                        ProductSubmissionActivity.this,
+                        android.R.layout.simple_spinner_item,
+                        locations);
+                adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+                spinnerLocation.setAdapter(adapter);
+            });
+        } catch (Exception e) {
+            Log.e("ProductSubmission", "Error loading locations: " + e.getMessage(), e);
+            runOnUiThread(() -> {
+                Toast.makeText(this, "Failed to load locations", Toast.LENGTH_SHORT).show();
+            });
         }
-        
-        runOnUiThread(() -> {
-            ArrayAdapter<String> adapter = new ArrayAdapter<>(
-                    ProductSubmissionActivity.this,
-                    android.R.layout.simple_spinner_item,
-                    locations);
-            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-            spinnerLocation.setAdapter(adapter);
-        });
     }
     
     private void loadTypes() throws JSONException, IOException {
-        JSONArray typesArray = SupabaseClient.queryTable("type", null, null, "*");
-        List<String> types = new ArrayList<>();
-        
-        for (int i = 0; i < typesArray.length(); i++) {
-            JSONObject type = typesArray.getJSONObject(i);
-            int id = type.getInt("id");
-            String name = type.getString("name");
-            types.add(name);
-            typeMap.put(name, id);
+        try {
+            JSONArray typesArray = SupabaseClient.queryTable("type", null, null, "*");
+            List<String> types = new ArrayList<>();
+            
+            for (int i = 0; i < typesArray.length(); i++) {
+                JSONObject type = typesArray.getJSONObject(i);
+                int id = type.getInt("id");
+                String name = type.getString("name");
+                types.add(name);
+                typeMap.put(name, id);
+            }
+            
+            runOnUiThread(() -> {
+                ArrayAdapter<String> adapter = new ArrayAdapter<>(
+                        ProductSubmissionActivity.this,
+                        android.R.layout.simple_spinner_item,
+                        types);
+                adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+                spinnerType.setAdapter(adapter);
+            });
+        } catch (Exception e) {
+            Log.e("ProductSubmission", "Error loading types: " + e.getMessage(), e);
+            runOnUiThread(() -> {
+                Toast.makeText(this, "Failed to load types", Toast.LENGTH_SHORT).show();
+            });
         }
-        
-        runOnUiThread(() -> {
-            ArrayAdapter<String> adapter = new ArrayAdapter<>(
-                    ProductSubmissionActivity.this,
-                    android.R.layout.simple_spinner_item,
-                    types);
-            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-            spinnerType.setAdapter(adapter);
-        });
     }
     
     private void setupClickListeners() {

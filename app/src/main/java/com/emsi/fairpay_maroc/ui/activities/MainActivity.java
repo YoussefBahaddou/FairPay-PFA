@@ -1,7 +1,5 @@
 package com.emsi.fairpay_maroc.ui.activities;
 
-import static com.emsi.fairpay_maroc.data.SupabaseClient.SUPABASE_KEY;
-import static com.emsi.fairpay_maroc.data.SupabaseClient.SUPABASE_URL;
 import static com.emsi.fairpay_maroc.data.SupabaseClient.getHttpClient;
 
 import android.content.SharedPreferences;
@@ -74,11 +72,19 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     private int selectedCityId = -1;
     private String selectedCityName = "";
     private ProgressBar progressBar;
+    private RecyclerView cityItemsRecyclerView;
+    private RecyclerView itemsRecyclerView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        // Initialize the RecyclerView
+        itemsRecyclerView = findViewById(R.id.updates_recycler_view); // Make sure this ID matches your layout XML
+        
+        // Set layout manager
+        itemsRecyclerView.setLayoutManager(new LinearLayoutManager(this));
 
         // Set up the toolbar
         Toolbar toolbar = findViewById(R.id.toolbar);
@@ -422,18 +428,30 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         }).start();
     }
 
-    private JSONArray queryItems(String tableName) throws JSONException, IOException {
+    private JSONArray queryItems(String tableName) throws JSONException, IOException, Exception {
         // Use the existing SupabaseClient.queryTable method
         return SupabaseClient.queryTable(tableName, null, null, "*");
     }
 
-    private String resolveForeignKey(String tableName, String keyColumn, int keyValue, String targetColumn) throws JSONException, IOException {
+    private String resolveForeignKey(String tableName, String keyColumn, int keyValue, String targetColumn) {
         if (keyValue == -1) return "Unknown";
-        JSONArray result = SupabaseClient.queryTable(tableName, keyColumn, String.valueOf(keyValue), targetColumn);
-        if (result.length() > 0) {
-            return result.getJSONObject(0).optString(targetColumn, "Unknown");
+        
+        try {
+            // Handle the type table specifically since it has a different column structure
+            if (tableName.equals("type") && targetColumn.equals("nom")) {
+                // Try with "name" instead of "nom" for the type table
+                targetColumn = "name";
+            }
+            
+            JSONArray result = SupabaseClient.queryTable(tableName, keyColumn, String.valueOf(keyValue), targetColumn);
+            if (result.length() > 0) {
+                return result.getJSONObject(0).optString(targetColumn, "Unknown");
+            }
+            return "Unknown";
+        } catch (Exception e) {
+            Log.e("MainActivity", "Error resolving foreign key for " + tableName + ": " + e.getMessage(), e);
+            return "Unknown";
         }
-        return "Unknown";
     }
 
     private String calculateTimeDifference(String dateString) {
@@ -512,18 +530,81 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 
                 // Fetch items from the "produit_serv" table with the filter and exclude pending status
                 // We need to use a more complex query here with multiple conditions
-                String url = SUPABASE_URL + "/rest/v1/produit_serv?select=*&ville_id=eq." + cityId + "&status=neq.pending";
+                try {
+                    JSONArray results = SupabaseClient.queryTableWithFilter("produit_serv", "ville_id=eq." + cityId + "&status=neq.pending", "*");
+                    
+                    // Process the results here
+                    if (results.length() > 0) {
+                        // Handle the results
+                        runOnUiThread(() -> {
+                            // Update your UI with the results
+                        });
+                    } else {
+                        runOnUiThread(() -> {
+                            Toast.makeText(MainActivity.this, "No products found for this city", Toast.LENGTH_SHORT).show();
+                        });
+                    }
+                } catch (Exception e) {
+                    Log.e("MainActivity", "Error querying products by city: " + e.getMessage(), e);
+                    runOnUiThread(() -> {
+                        Toast.makeText(MainActivity.this, "Error loading products for this city", Toast.LENGTH_SHORT).show();
+                    });
+                }
                 
-                Request request = new Request.Builder()
-                        .url(url)
-                        .addHeader("apikey", SUPABASE_KEY)
-                        .addHeader("Authorization", "Bearer " + SUPABASE_KEY)
-                        .build();
+                try {
+                    // Use the SupabaseClient method to get the data
+                    JSONArray results = SupabaseClient.queryTableWithFilter("produit_serv", "ville_id=eq." + cityId + "&status=neq.pending", "*");
+                    
+                    // Process the results
+                    List<Item> cityItems = new ArrayList<>();
+                    for (int i = 0; i < results.length(); i++) {
+                        JSONObject itemData = results.getJSONObject(i);
+                        
+                        // Extract the data you need from itemData
+                        String image = itemData.optString("image", "");
+                        String nom = itemData.optString("nom", "Unknown");
+                        String prix = itemData.optString("prix", "N/A");
+                        String conseil = itemData.optString("conseil", "No advice");
+                        String dateMiseAJour = itemData.optString("datemiseajour", "Unknown date");
+                        String timeDifference = calculateTimeDifference(dateMiseAJour);
+                        
+                        // Resolve foreign keys if needed
+                        String categorieName = resolveForeignKey("categorie", "id", itemData.optInt("categorie_id", -1), "nom");
+                        String regionName = resolveForeignKey("ville", "id", itemData.optInt("ville_id", -1), "nom");
+                        String typeName = resolveForeignKey("type", "id", itemData.optInt("type_id", -1), "nom");
+                        
+                        // Create an Item object and add it to the list
+                        Item item = new Item(image, nom, prix, conseil, timeDifference, categorieName, regionName, typeName);
+                        cityItems.add(item);
+                    }
+                    
+                    // Update the UI on the main thread
+                    runOnUiThread(() -> {
+                        // Update your RecyclerView or other UI components with cityItems
+                        if (cityItems.isEmpty()) {
+                            Toast.makeText(MainActivity.this, "No products found for this city", Toast.LENGTH_SHORT).show();
+                        } else {
+                            // For example, if you have a RecyclerView:
+                            if (itemsRecyclerView != null) {
+                                ItemAdapter adapter = new ItemAdapter(cityItems);
+                                itemsRecyclerView.setAdapter(adapter);
+                            } else {
+                                Log.e("MainActivity", "RecyclerView is null in fetchItemsWithLocationFilter");
+                            }
+                        }
+                    });
+                    
+                } catch (Exception e) {
+                    Log.e("MainActivity", "Error loading city items: " + e.getMessage(), e);
+                    runOnUiThread(() -> {
+                        Toast.makeText(MainActivity.this, "Error loading products for this city", Toast.LENGTH_SHORT).show();
+                    });
+                }
                 
-                Response response = getHttpClient().newCall(request).execute();
-                String responseData = response.body().string();
-                JSONArray itemsArray = new JSONArray(responseData);
-                
+                // Declare and initialize itemsArray
+                JSONArray itemsArray = SupabaseClient.queryTableWithFilter("produit_serv", "ville_id=eq." + cityId + "&status=neq.pending", "*");
+
+                // Then you can use it
                 Log.d("Fetching Item", "Query returned " + itemsArray.length() + " items");
                 
                 List<Item> items = new ArrayList<>();

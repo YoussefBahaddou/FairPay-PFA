@@ -23,6 +23,8 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.Nullable;
 import androidx.appcompat.widget.Toolbar;
+import androidx.recyclerview.widget.RecyclerView;
+import androidx.recyclerview.widget.LinearLayoutManager;
 
 import com.emsi.fairpay_maroc.R;
 import com.emsi.fairpay_maroc.data.SupabaseClient;
@@ -121,34 +123,54 @@ public class ProductActivity extends BaseActivity {
         if (currentMode == MODE_ADD) {
             // Add new product
             JSONObject data = new JSONObject();
-            data.put("nom", productName);
-            data.put("prix", productPrice);
-            data.put("conseil", productAdvice);
-            data.put("datemiseajour", currentDate);
-            data.put("categorie_id", selectedCategoryId);
-            data.put("ville_id", selectedCityId);
-            data.put("type_id", selectedTypeId);
-            data.put("submitted_by", userId);
-            data.put("status", "pending"); // Set status to pending for new products
-            
-            // Handle image if available
-            if (imageChanged && selectedImageUri != null) {
-                // Process and add image data
-                // ...
-            }
-            
-            // Submit the product
-            JSONObject result = SupabaseClient.insertIntoTable("produit_serv", data);
-            
-            runOnUiThread(() -> {
-                progressBar.setVisibility(View.GONE);
-                btnSubmit.setEnabled(true);
-                Toast.makeText(this, R.string.product_added_successfully, Toast.LENGTH_SHORT).show();
+            String productName = etProductName.getText().toString().trim();
+            String productPrice = etProductPrice.getText().toString().trim();
+            String productAdvice = etProductAdvice.getText().toString().trim();
+            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+            String currentDate = dateFormat.format(new Date());
+            int selectedCategoryId = spinnerCategory.getSelectedItemPosition() + 1;
+            int selectedCityId = spinnerCity.getSelectedItemPosition() + 1;
+            int selectedTypeId = spinnerType.getSelectedItemPosition() + 1;
+            try {
+                data.put("nom", productName);
+                data.put("prix", productPrice);
+                data.put("conseil", productAdvice);
+                data.put("datemiseajour", currentDate);
+                data.put("categorie_id", selectedCategoryId);
+                data.put("ville_id", selectedCityId);
+                data.put("type_id", selectedTypeId);
+                data.put("submitted_by", userId);
+                data.put("status", "pending"); // Set status to pending for new products
                 
-                // Return to previous screen
-                setResult(RESULT_OK);
-                finish();
-            });
+                // Handle image if available
+                if (imageChanged && selectedImageUri != null) {
+                    // Process and add image data
+                    // ...
+                }
+                
+                // Submit the product
+                JSONObject result = SupabaseClient.insertIntoTable("produit_serv", data);
+                
+                runOnUiThread(() -> {
+                    progressBar.setVisibility(View.GONE);
+                    btnSubmit.setEnabled(true);
+                    Toast.makeText(this, R.string.product_added_successfully, Toast.LENGTH_SHORT).show();
+                    
+                    // Return to previous screen
+                    setResult(RESULT_OK);
+                    finish();
+                });
+            } catch (JSONException e) {
+                Log.e("ProductActivity", "Error creating JSON data: " + e.getMessage(), e);
+                Toast.makeText(this, "Error saving product data", Toast.LENGTH_SHORT).show();
+                return; // Return from the method or handle the error appropriately
+            } catch (IOException e) {
+                Log.e("ProductActivity", "Network error while saving product: " + e.getMessage(), e);
+                Toast.makeText(this, "Network error while saving product", Toast.LENGTH_SHORT).show();
+            } catch (Exception e) {
+                Log.e("ProductActivity", "Error saving product: " + e.getMessage(), e);
+                Toast.makeText(this, "Error saving product", Toast.LENGTH_SHORT).show();
+            }
         }
     }
     

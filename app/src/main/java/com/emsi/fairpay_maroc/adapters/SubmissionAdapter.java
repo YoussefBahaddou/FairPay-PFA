@@ -61,13 +61,20 @@ public class SubmissionAdapter extends RecyclerView.Adapter<SubmissionAdapter.Vi
         Context context = holder.itemView.getContext();
 
         // Set product name
-        holder.productNameTextView.setText(submission.getProductName());
+        holder.productNameTextView.setText(submission.getNom());
 
         // Set price
-        holder.priceTextView.setText(context.getString(R.string.price_format, submission.getPrice()));
+        try {
+            // Try to parse the price as a float
+            float priceValue = Float.parseFloat(submission.getPrice());
+            holder.priceTextView.setText(context.getString(R.string.price_format, priceValue));
+        } catch (NumberFormatException e) {
+            // If parsing fails, just display the price as is
+            holder.priceTextView.setText(submission.getPrice());
+        }
 
         // Set date
-        holder.dateTextView.setText(submission.getSubmissionDate());
+        holder.dateTextView.setText(submission.getDateMiseAJour());
 
         // Set status with appropriate color
         String status = submission.getStatus();
@@ -76,32 +83,32 @@ public class SubmissionAdapter extends RecyclerView.Adapter<SubmissionAdapter.Vi
         switch (status.toLowerCase()) {
             case "approved":
                 statusColor = ContextCompat.getColor(context, R.color.colorPrimary);
-                holder.editButton.setVisibility(View.GONE);
+                holder.approveButton.setVisibility(View.GONE);
                 break;
             case "rejected":
                 statusColor = ContextCompat.getColor(context, R.color.colorAccent);
-                holder.editButton.setVisibility(View.GONE);
+                holder.approveButton.setVisibility(View.GONE);
                 break;
             default:
                 statusColor = ContextCompat.getColor(context, R.color.gray);
                 if (isAdmin && statusListener != null) {
-                    holder.editButton.setVisibility(View.VISIBLE);
-                    holder.editButton.setOnClickListener(v -> {
+                    holder.approveButton.setVisibility(View.VISIBLE);
+                    holder.approveButton.setOnClickListener(v -> {
                         statusListener.onStatusUpdate(submission.getId(), "approved");
                     });
                 } else {
-                    holder.editButton.setVisibility(View.GONE);
+                    holder.approveButton.setVisibility(View.GONE);
                 }
                 break;
         }
         holder.statusTextView.setTextColor(statusColor);
 
         // Show admin notes if available
-        if (!TextUtils.isEmpty(submission.getAdminNotes())) {
-            holder.adminNotesTextView.setText(submission.getAdminNotes());
-            holder.adminNotesTextView.setVisibility(View.VISIBLE);
+        if (!TextUtils.isEmpty(submission.getCommentaire())) {
+            holder.commentaireTextView.setText(submission.getCommentaire());
+            holder.commentaireTextView.setVisibility(View.VISIBLE);
         } else {
-            holder.adminNotesTextView.setVisibility(View.GONE);
+            holder.commentaireTextView.setVisibility(View.GONE);
         }
 
         // Set click listener if provided
@@ -122,8 +129,8 @@ public class SubmissionAdapter extends RecyclerView.Adapter<SubmissionAdapter.Vi
         TextView priceTextView;
         TextView dateTextView;
         TextView statusTextView;
-        TextView adminNotesTextView;
-        Button editButton;
+        TextView commentaireTextView;
+        Button approveButton;
 
         public ViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -131,8 +138,8 @@ public class SubmissionAdapter extends RecyclerView.Adapter<SubmissionAdapter.Vi
             priceTextView = itemView.findViewById(R.id.tv_price);
             dateTextView = itemView.findViewById(R.id.tv_date);
             statusTextView = itemView.findViewById(R.id.tv_status);
-            adminNotesTextView = itemView.findViewById(R.id.tv_admin_notes);
-            editButton = itemView.findViewById(R.id.btn_edit);
+            commentaireTextView = itemView.findViewById(R.id.tv_commentaire);
+            approveButton = itemView.findViewById(R.id.btn_approve);
         }
     }
 }

@@ -1,4 +1,4 @@
-package com.emsi.fairpay_maroc.ui.activities;
+  package com.emsi.fairpay_maroc.ui.activities;
 
 import android.content.Intent;
 import android.os.Bundle;
@@ -323,8 +323,8 @@ public class CollabActivity extends BaseActivity {
                     float price = (float) product.getDouble("prix");
                     String status = product.optString("status", "pending");
                     String date = product.optString("datemiseajour", "Unknown");
-                    
-                    Submission submission = new Submission(id, name, price, status, date, "");
+
+                    Submission submission = new Submission(id, name, String.valueOf(price), status, date, "");
                     submissions.add(submission);
                     Log.d(TAG, "Added product: " + name + " with status: " + status);
                 }
