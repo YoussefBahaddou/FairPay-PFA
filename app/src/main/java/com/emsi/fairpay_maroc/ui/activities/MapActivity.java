@@ -19,8 +19,12 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import com.emsi.fairpay_maroc.R;
+import com.emsi.fairpay_maroc.data.SupabaseClient;
 import com.emsi.fairpay_maroc.utils.GeolocationHelper;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.osmdroid.api.IMapController;
 import org.osmdroid.config.Configuration;
 import org.osmdroid.events.MapEventsReceiver;
@@ -330,5 +334,59 @@ public class MapActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
         mapView.onDetach();
+    }
+
+    private void addCityMarkers() {
+        try {
+            // Show progress while loading cities
+            if (progressBar != null) {
+                progressBar.setVisibility(View.VISIBLE);
+            }
+            
+            // Fetch cities from your database (using SupabaseClient or other data source)
+            new Thread(() -> {
+                try {
+                    // Example: Fetch cities from Supabase
+                    JSONArray cities = SupabaseClient.queryTable("ville", null, null, "id,nom,latitude,longitude");
+                    
+                    runOnUiThread(() -> {
+                        try {
+                            // Add a marker for each city
+                            for (int i = 0; i < cities.length(); i++) {
+                                JSONObject city = cities.getJSONObject(i);
+                                int cityId = city.getInt("id");
+                                String cityName = city.getString("nom");
+                                double latitude = city.getDouble("latitude");
+                                double longitude = city.getDouble("longitude");
+                                
+                                GeoPoint position = new GeoPoint(latitude, longitude);
+                                addCityMarker(position, cityName, cityId);
+                            }
+                        } catch (JSONException e) {
+                            Log.e("MapActivity", "Error parsing city data: " + e.getMessage(), e);
+                            Toast.makeText(MapActivity.this, "Error loading cities", Toast.LENGTH_SHORT).show();
+                        } finally {
+                            // Hide progress when done
+                            if (progressBar != null) {
+                                progressBar.setVisibility(View.GONE);
+                            }
+                        }
+                    });
+                } catch (Exception e) {
+                    Log.e("MapActivity", "Error fetching cities: " + e.getMessage(), e);
+                    runOnUiThread(() -> {
+                        Toast.makeText(MapActivity.this, "Error loading cities", Toast.LENGTH_SHORT).show();
+                        if (progressBar != null) {
+                            progressBar.setVisibility(View.GONE);
+                        }
+                    });
+                }
+            }).start();
+        } catch (Exception e) {
+            Log.e("MapActivity", "Error in addCityMarkers: " + e.getMessage(), e);
+            if (progressBar != null) {
+                progressBar.setVisibility(View.GONE);
+            }
+        }
     }
 }

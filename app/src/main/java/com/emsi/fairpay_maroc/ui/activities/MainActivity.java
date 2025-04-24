@@ -1,5 +1,10 @@
 package com.emsi.fairpay_maroc.ui.activities;
 
+import static com.emsi.fairpay_maroc.data.SupabaseClient.SUPABASE_KEY;
+import static com.emsi.fairpay_maroc.data.SupabaseClient.SUPABASE_URL;
+import static com.emsi.fairpay_maroc.data.SupabaseClient.getHttpClient;
+
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.MenuItem;
 import android.widget.EditText;
@@ -35,6 +40,7 @@ import com.emsi.fairpay_maroc.data.SupabaseClient;
 import com.emsi.fairpay_maroc.models.Category;
 import com.emsi.fairpay_maroc.models.Location;
 
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.navigation.NavigationView;
 
 import java.util.ArrayList;
@@ -58,12 +64,16 @@ import java.io.IOException;
 
 import android.util.Log;
 
+import okhttp3.Request;
+import okhttp3.Response;
+
 public class MainActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener {
 
     private DrawerLayout drawerLayout;
     private static final int REQUEST_LOCATION_SELECTION = 1001;
     private int selectedCityId = -1;
     private String selectedCityName = "";
+    private ProgressBar progressBar;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -83,7 +93,18 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             locationFilterText.setVisibility(View.VISIBLE);
         }
 
-        
+        // Add this to the onCreate method
+        FloatingActionButton fabAddProduct = findViewById(R.id.fab_add_product);
+
+        // Show the FAB only for producers and contributors
+        SharedPreferences prefs = getSharedPreferences("FairPayPrefs", MODE_PRIVATE);
+        int userRoleId = prefs.getInt("user_role_id", -1);
+        if (userRoleId == 2 || userRoleId == 3) { // 2 = producer, 3 = contributor
+            fabAddProduct.setVisibility(View.VISIBLE);
+            fabAddProduct.setOnClickListener(v -> addNewProduct());
+        } else {
+            fabAddProduct.setVisibility(View.GONE);
+        }
 
         // Set up the navigation drawer
         drawerLayout = findViewById(R.id.drawer_layout);
@@ -119,7 +140,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         // Set up the recycler views
         setupRecyclerViewsWithoutItems();
         
-        // Load saved location and fetch items accordingly
+        loadUserRole();
         loadSavedLocation();
 
         // Handle back button press
@@ -134,6 +155,51 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 }
             }
         });
+    }
+
+    private void loadUserRole() {
+        // Get user ID from SharedPreferences
+        int userId = getSharedPreferences("FairPayPrefs", MODE_PRIVATE)
+                .getInt("user_id", -1);
+        
+        if (userId == -1) {
+            return; // User not logged in
+        }
+        
+        // Fetch user role in background
+        new Thread(() -> {
+            try {
+                // Query the user to get their role_id
+                JSONArray userResult = SupabaseClient.queryTable(
+                        "utilisateur", 
+                        "id", 
+                        String.valueOf(userId), 
+                        "role_id");
+                
+                if (userResult.length() > 0) {
+                    String roleId = userResult.getJSONObject(0).optString("role_id", "1");
+                    
+                    // Get the role name
+                    JSONArray roleResult = SupabaseClient.queryTable(
+                            "role", 
+                            "id", 
+                            roleId, 
+                            "nom");
+                    
+                    if (roleResult.length() > 0) {
+                        String roleName = roleResult.getJSONObject(0).optString("nom", "user");
+                        
+                        // Save role in SharedPreferences
+                        getSharedPreferences("FairPayPrefs", MODE_PRIVATE)
+                                .edit()
+                                .putString("user_role", roleName)
+                                .apply();
+                    }
+                }
+            } catch (Exception e) {
+                Log.e("MainActivity", "Error loading user role: " + e.getMessage());
+            }
+        }).start();
     }
 
     // Add this method to set up RecyclerViews without fetching items yet
@@ -153,13 +219,85 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         updatesRecyclerView.setLayoutManager(new LinearLayoutManager(this));
     }
 
+    private void setupItemAdapter(RecyclerView updatesRecyclerView, List<Item> items) {
+        ItemAdapter adapter = new ItemAdapter(items);
+        
+        // Set click listener for viewing items
+        adapter.setOnItemClickListener((item, position) -> {
+            // Get the product ID from the item
+            int productId = item.getId();
+            viewProduct(productId);
+        });
+        
+        // Set action listener for editing/deleting items
+        adapter.setOnItemActionListener(new ItemAdapter.OnItemActionListener() {
+            @Override
+            public void onEditItem(Item item, int position) {
+                int productId = item.getId();
+                editProduct(productId);
+            }
+
+            @Override
+            public void onDeleteItem(Item item, int position) {
+                int productId = item.getId();
+                showDeleteConfirmationDialog(productId, position);
+            }
+        });
+        
+        updatesRecyclerView.setAdapter(adapter);
+    }
+
+    private void showDeleteConfirmationDialog(int productId, int position) {
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.confirm_delete)
+                .setMessage(R.string.confirm_delete_message)
+                .setPositiveButton(R.string.yes, (dialog, which) -> {
+                    deleteProduct(productId, position);
+                })
+                .setNegativeButton(R.string.no, null)
+                .show();
+    }
+
+    private void deleteProduct(int productId, int position) {
+        progressBar.setVisibility(View.VISIBLE);
+        
+        new Thread(() -> {
+            try {
+                // Delete the product from the database
+                String path = "produit_serv?id=eq." + productId;
+                SupabaseClient.deleteRecord(path);
+                
+                // Update the UI
+                runOnUiThread(() -> {
+                    progressBar.setVisibility(View.GONE);
+                    Toast.makeText(this, R.string.product_deleted_successfully, Toast.LENGTH_SHORT).show();
+                    
+                    // Remove the item from the list and update the adapter
+                    RecyclerView updatesRecyclerView = findViewById(R.id.updates_recycler_view);
+                    ItemAdapter adapter = (ItemAdapter) updatesRecyclerView.getAdapter();
+                    if (adapter != null) {
+                        List<Item> items = new ArrayList<>(adapter.getItems());
+                        items.remove(position);
+                        adapter.updateItems(items);
+                    }
+                });
+            } catch (Exception e) {
+                Log.e("MainActivity", "Error deleting product: " + e.getMessage(), e);
+                runOnUiThread(() -> {
+                    progressBar.setVisibility(View.GONE);
+                    Toast.makeText(this, R.string.error_deleting_product, Toast.LENGTH_SHORT).show();
+                });
+            }
+        }).start();
+    }
+
     private void fetchItemsFromDatabase(RecyclerView updatesRecyclerView) {
         new Thread(() -> {
             try {
                 Log.d("Fetching Item", "Starting to fetch items from the database...");
                 
-                // Fetch items from the "produit_serv" table
-                JSONArray itemsArray = queryItems("produit_serv");
+                // Fetch items from the "produit_serv" table where status is not 'pending'
+                JSONArray itemsArray = SupabaseClient.queryTable("produit_serv", "status", "neq.pending", "*");
                 List<Item> items = new ArrayList<>();
 
                 Log.d("Fetching Item", "Successfully fetched data from the database. Parsing items...");
@@ -167,6 +305,9 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 // Map the JSON data to Item objects
                 for (int i = 0; i < itemsArray.length(); i++) {
                     JSONObject itemData = itemsArray.getJSONObject(i);
+
+                    // Get the item ID
+                    int id = itemData.optInt("id", -1);
 
                     // Resolve foreign key data
                     String categorieName = resolveForeignKey("categorie", "id", itemData.optInt("categorie_id", -1), "nom");
@@ -319,22 +460,38 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         
-        if (requestCode == REQUEST_LOCATION_SELECTION && resultCode == RESULT_OK && data != null) {
-            selectedCityId = data.getIntExtra("city_id", -1);
-            selectedCityName = data.getStringExtra("city_name");
-            
-            if (selectedCityId != -1) {
-                Log.d("MainActivity", "Selected city: " + selectedCityName + " (ID: " + selectedCityId + ")");
-                Toast.makeText(this, "Selected location: " + selectedCityName, Toast.LENGTH_SHORT).show();
+        if (resultCode == RESULT_OK) {
+            if (requestCode == REQUEST_LOCATION_SELECTION) {
+                // Handle location selection result (existing code)
+                selectedCityId = data.getIntExtra("city_id", -1);
+                selectedCityName = data.getStringExtra("city_name");
                 
-                // Save the selected location
-                saveSelectedLocation(selectedCityId, selectedCityName);
+                if (selectedCityId != -1) {
+                    Log.d("MainActivity", "Selected city: " + selectedCityName + " (ID: " + selectedCityId + ")");
+                    Toast.makeText(this, "Selected location: " + selectedCityName, Toast.LENGTH_SHORT).show();
+                    
+                    // Save the selected location
+                    saveSelectedLocation(selectedCityId, selectedCityName);
+                    
+                    // Update UI to show we're filtering by location
+                    updateLocationFilterUI();
+                    
+                    // Refresh the items with the selected location filter
+                    fetchItemsWithLocationFilter(selectedCityId);
+                }
+            } else if (requestCode == REQUEST_ADD_PRODUCT || requestCode == REQUEST_EDIT_PRODUCT) {
+                // Refresh the product list after adding or editing a product
+                RecyclerView updatesRecyclerView = findViewById(R.id.updates_recycler_view);
                 
-                // Update UI to show we're filtering by location
-                updateLocationFilterUI();
+                if (selectedCityId != -1) {
+                    fetchItemsWithLocationFilter(selectedCityId);
+                } else {
+                    fetchItemsFromDatabase(updatesRecyclerView);
+                }
                 
-                // Refresh the items with the selected location filter
-                fetchItemsWithLocationFilter(selectedCityId);
+                Toast.makeText(this, requestCode == REQUEST_ADD_PRODUCT ? 
+                        R.string.product_added_successfully : R.string.product_updated_successfully, 
+                        Toast.LENGTH_SHORT).show();
             }
         }
     }
@@ -353,8 +510,20 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             try {
                 Log.d("Fetching Item", "Starting to fetch items from the database with location filter for city ID: " + cityId);
                 
-                // Fetch items from the "produit_serv" table with the filter
-                JSONArray itemsArray = SupabaseClient.queryTable("produit_serv", "ville_id", String.valueOf(cityId), "*");
+                // Fetch items from the "produit_serv" table with the filter and exclude pending status
+                // We need to use a more complex query here with multiple conditions
+                String url = SUPABASE_URL + "/rest/v1/produit_serv?select=*&ville_id=eq." + cityId + "&status=neq.pending";
+                
+                Request request = new Request.Builder()
+                        .url(url)
+                        .addHeader("apikey", SUPABASE_KEY)
+                        .addHeader("Authorization", "Bearer " + SUPABASE_KEY)
+                        .build();
+                
+                Response response = getHttpClient().newCall(request).execute();
+                String responseData = response.body().string();
+                JSONArray itemsArray = new JSONArray(responseData);
+                
                 Log.d("Fetching Item", "Query returned " + itemsArray.length() + " items");
                 
                 List<Item> items = new ArrayList<>();
@@ -433,11 +602,12 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                     product.put("nom", "Sample Product " + i + " in " + cityName);
                     product.put("prix", 100 * i);
                     product.put("conseil", "This is a sample product added for testing");
-                    product.put("datemiseenjour", new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date()));
+                    product.put("datemiseajour", new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date()));
                     product.put("categorie_id", (i % 4) + 1); // Cycle through categories 1-4
                     product.put("ville_id", cityId);
                     product.put("type_id", (i % 2) + 1); // Alternate between types 1-2
                     product.put("image", "sample_image_" + i + ".jpg");
+                    product.put("status", "approved"); // Set status to approved so it shows up
                     
                     // Insert the product
                     SupabaseClient.insertIntoTable("produit_serv", product);
@@ -485,8 +655,12 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             } else if (id == R.id.nav_locations) {
                 // Open MapActivity for result to get the selected location
                 openLocationMap();
-            } else if (id == R.id.nav_contribute) {
-                Toast.makeText(this, "Contribute", Toast.LENGTH_SHORT).show();
+            } else if (id == R.id.nav_collabs) {
+                // Open the CollabActivity
+                Intent intent = new Intent(MainActivity.this, CollabActivity.class);
+                startActivity(intent);
+                // Apply custom animation
+                overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left);
             } else if (id == R.id.nav_profile) {
                 // Launch the ProfileActivity
                 Intent intent = new Intent(MainActivity.this, ProfileActivity.class);
@@ -658,6 +832,41 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         
         Toast.makeText(this, "Location filter cleared", Toast.LENGTH_SHORT).show();
     }
+
+    /**
+     * Opens the ProductActivity to view a product
+     */
+    private void viewProduct(int productId) {
+        Intent intent = new Intent(this, ProductActivity.class);
+        intent.putExtra(ProductActivity.EXTRA_MODE, ProductActivity.MODE_VIEW);
+        intent.putExtra(ProductActivity.EXTRA_PRODUCT_ID, productId);
+        startActivity(intent);
+        overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left);
+    }
+
+    /**
+     * Opens the ProductActivity to add a new product
+     */
+    private void addNewProduct() {
+        Intent intent = new Intent(this, ProductActivity.class);
+        intent.putExtra(ProductActivity.EXTRA_MODE, ProductActivity.MODE_ADD);
+        startActivityForResult(intent, REQUEST_ADD_PRODUCT);
+        overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left);
+    }
+
+    /**
+     * Opens the ProductActivity to edit an existing product
+     */
+    private void editProduct(int productId) {
+        Intent intent = new Intent(this, ProductActivity.class);
+        intent.putExtra(ProductActivity.EXTRA_MODE, ProductActivity.MODE_EDIT);
+        intent.putExtra(ProductActivity.EXTRA_PRODUCT_ID, productId);
+        startActivityForResult(intent, REQUEST_EDIT_PRODUCT);
+        overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left);
+    }
+
+    private static final int REQUEST_ADD_PRODUCT = 1002;
+    private static final int REQUEST_EDIT_PRODUCT = 1003;
 }
 
                     

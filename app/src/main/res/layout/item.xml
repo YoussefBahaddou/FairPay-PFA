@@ -31,15 +31,31 @@
             android:layout_weight="3"
             android:orientation="vertical">
 
-            <!-- Product Name -->
-            <TextView
-                android:id="@+id/tv_product_name"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Product Name"
-                android:textColor="@color/black"
-                android:textSize="16sp"
-                android:textStyle="bold" />
+                android:orientation="horizontal">
+
+                <!-- Product Name -->
+                <TextView
+                    android:id="@+id/tv_product_name"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Product Name"
+                    android:textColor="@color/black"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <!-- Options Menu -->
+                <ImageView
+                    android:id="@+id/iv_options"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_more_vert"
+                    android:contentDescription="@string/options"
+                    android:visibility="gone" />
+            </LinearLayout>
 
             <!-- Product Price -->
             <TextView
@@ -81,7 +97,6 @@
                 android:text="Location"
                 android:textColor="@color/black"
                 android:textSize="12sp" />
-
 
             <!-- Last Updated Date -->
             <TextView

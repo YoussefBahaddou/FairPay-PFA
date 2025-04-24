@@ -12,6 +12,7 @@ import androidx.appcompat.widget.Toolbar;
 
 import com.emsi.fairpay_maroc.R;
 import com.emsi.fairpay_maroc.data.SupabaseClient;
+import com.emsi.fairpay_maroc.utils.LanguageHelper;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
 

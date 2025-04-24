@@ -14,16 +14,16 @@
             android:icon="@drawable/ic_location"
             android:title="@string/locations" />
         <item
-            android:id="@+id/nav_contribute"
-            android:icon="@drawable/ic_add"
-            android:title="@string/contribute" />
+            android:id="@+id/nav_collabs"
+            android:icon="@drawable/baseline_business_24"
+            android:title="Collabs" />
     </group>
 
     <item android:title="@string/account">
         <menu>
             <item
                 android:id="@+id/nav_profile"
-                android:icon="@drawable/ic_account"
+                android:icon="@drawable/ic_person"
                 android:title="@string/profile" />
             <item
                 android:id="@+id/nav_language"

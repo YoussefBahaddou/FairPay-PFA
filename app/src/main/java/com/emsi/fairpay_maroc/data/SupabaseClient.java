@@ -16,12 +16,11 @@ import okhttp3.RequestBody;
 import okhttp3.Response;
 
 public class SupabaseClient {
+    public static final String SUPABASE_URL = "https://wpglbagvinlmthlzxgyy.supabase.co";
+    public static final String SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndwZ2xiYWd2aW5sbXRobHp4Z3l5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDExNzYyMjksImV4cCI6MjA1Njc1MjIyOX0.ala-XwZ9Zh-6UOQBIruJ76kYRg7MINzIvNjDgk8sMfw";
     private static final String TAG = "SupabaseClient";
     private static OkHttpClient httpClient;
-    
-    // Replace with your Supabase URL and API key from the Supabase dashboard
-    private static final String SUPABASE_URL = "https://wpglbagvinlmthlzxgyy.supabase.co";
-    private static final String SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndwZ2xiYWd2aW5sbXRobHp4Z3l5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDExNzYyMjksImV4cCI6MjA1Njc1MjIyOX0.ala-XwZ9Zh-6UOQBIruJ76kYRg7MINzIvNjDgk8sMfw";
+
     public static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
     
     private SupabaseClient() {
@@ -40,18 +39,17 @@ public class SupabaseClient {
     }
     
     /**
-     * Query data from a table with filters
+     * Query a table with a complex filter
      * @param table The table name
-     * @param column The column to filter on
-     * @param value The value to match
-     * @param select The columns to select (comma-separated)
+     * @param filter The filter string (e.g., "status=neq.pending&ville_id=eq.1")
+     * @param select The columns to select
      * @return JSONArray of results
      */
-    public static JSONArray queryTable(String table, String column, String value, String select) throws IOException, JSONException {
+    public static JSONArray queryTableWithFilter(String table, String filter, String select) throws IOException, JSONException {
         String url = SUPABASE_URL + "/rest/v1/" + table + "?select=" + select;
         
-        if (column != null && value != null) {
-            url += "&" + column + "=eq." + value;
+        if (filter != null && !filter.isEmpty()) {
+            url += "&" + filter;
         }
         
         Log.d(TAG, "Query URL: " + url);
@@ -217,6 +215,156 @@ public class SupabaseClient {
         } catch (Exception e) {
             Log.e(TAG, "Error updating record: " + e.getMessage(), e);
             throw e;
+        }
+    }
+
+    /**
+     * Uploads a file to Supabase Storage
+     * @param bucketName The name of the storage bucket (e.g., "images")
+     * @param fileName The name to give the file in storage
+     * @param fileData The byte array of the file data
+     * @param contentType The MIME type of the file (e.g., "image/jpeg")
+     * @return The URL of the uploaded file
+     */
+    public static String uploadFile(String bucketName, String fileName, byte[] fileData, String contentType) throws IOException, JSONException {
+        String url = SUPABASE_URL + "/storage/v1/object/" + bucketName + "/" + fileName;
+        
+        Log.d(TAG, "Uploading file to: " + url);
+        Log.d(TAG, "Content type: " + contentType);
+        Log.d(TAG, "File size: " + fileData.length + " bytes");
+        
+        RequestBody requestBody = RequestBody.create(MediaType.parse(contentType), fileData);
+        
+        Request request = new Request.Builder()
+                .url(url)
+                .put(requestBody)
+                .addHeader("apikey", SUPABASE_KEY)
+                .addHeader("Authorization", "Bearer " + SUPABASE_KEY)
+                .addHeader("Content-Type", contentType)
+                .build();
+        
+        try (Response response = getHttpClient().newCall(request).execute()) {
+            String responseBody = response.body() != null ? response.body().string() : "No response body";
+            
+            if (!response.isSuccessful()) {
+                Log.e(TAG, "Error uploading file: " + response.code() + " - " + responseBody);
+                throw new IOException("Error uploading file: " + response.code() + " - " + responseBody);
+            }
+            
+            Log.d(TAG, "File uploaded successfully: " + responseBody);
+            
+            // Return the public URL for the file
+            return SUPABASE_URL + "/storage/v1/object/public/" + bucketName + "/" + fileName;
+        }
+    }
+
+    /**
+     * Gets the public URL for a file in Supabase Storage
+     * @param bucketName The name of the storage bucket
+     * @param fileName The name of the file
+     * @return The public URL of the file
+     */
+    public static String getFileUrl(String bucketName, String fileName) {
+        return SUPABASE_URL + "/storage/v1/object/public/" + bucketName + "/" + fileName;
+    }
+
+    /**
+     * Ensures that a bucket exists in Supabase Storage
+     * @param bucketName The name of the bucket to check/create
+     */
+    public static void ensureBucketExists(String bucketName) throws IOException, JSONException {
+        // First, check if the bucket exists
+        String url = SUPABASE_URL + "/storage/v1/bucket/" + bucketName;
+        
+        Request checkRequest = new Request.Builder()
+                .url(url)
+                .get()
+                .addHeader("apikey", SUPABASE_KEY)
+                .addHeader("Authorization", "Bearer " + SUPABASE_KEY)
+                .build();
+        
+        try (Response response = getHttpClient().newCall(checkRequest).execute()) {
+            if (response.code() == 404) {
+                // Bucket doesn't exist, create it
+                JSONObject bucketConfig = new JSONObject();
+                bucketConfig.put("name", bucketName);
+                bucketConfig.put("public", true); // Make it publicly accessible
+                
+                RequestBody body = RequestBody.create(
+                        bucketConfig.toString(), 
+                        MediaType.parse("application/json"));
+                
+                Request createRequest = new Request.Builder()
+                        .url(SUPABASE_URL + "/storage/v1/bucket")
+                        .post(body)
+                        .addHeader("apikey", SUPABASE_KEY)
+                        .addHeader("Authorization", "Bearer " + SUPABASE_KEY)
+                        .addHeader("Content-Type", "application/json")
+                        .build();
+                
+                try (Response createResponse = getHttpClient().newCall(createRequest).execute()) {
+                    if (!createResponse.isSuccessful()) {
+                        throw new IOException("Failed to create bucket: " + createResponse.code());
+                    }
+                    Log.d(TAG, "Created bucket: " + bucketName);
+                }
+            } else if (!response.isSuccessful() && response.code() != 404) {
+                throw new IOException("Failed to check bucket: " + response.code());
+            } else {
+                Log.d(TAG, "Bucket already exists: " + bucketName);
+            }
+        }
+    }
+
+    /**
+     * Delete a record from a table
+     * @param path The path to the record to delete (e.g., "table_name?id=eq.123")
+     * @return true if successful, false otherwise
+     */
+    public static boolean deleteRecord(String path) throws IOException, JSONException {
+        String url = SUPABASE_URL + "/rest/v1/" + path;
+        
+        Log.d(TAG, "Delete URL: " + url);
+        
+        Request request = new Request.Builder()
+                .url(url)
+                .addHeader("apikey", SUPABASE_KEY)
+                .addHeader("Authorization", "Bearer " + SUPABASE_KEY)
+                .delete()
+                .build();
+        
+        try (Response response = getHttpClient().newCall(request).execute()) {
+            if (!response.isSuccessful()) {
+                String responseData = response.body().string();
+                Log.e(TAG, "Error response: " + responseData);
+                throw new IOException("Unexpected code " + response + ": " + responseData);
+            }
+            
+            return true;
+        } catch (Exception e) {
+            Log.e(TAG, "Error deleting record: " + e.getMessage(), e);
+            throw e;
+        }
+    }
+
+    /**
+     * Update the status of a product
+     * @param productId The product ID
+     * @param newStatus The new status (e.g., "approved", "pending", "rejected")
+     * @return True if successful, false otherwise
+     */
+    public static boolean updateProductStatus(String productId, String newStatus) {
+        try {
+            JSONObject statusData = new JSONObject();
+            statusData.put("status", newStatus);
+            
+            String path = "produit_serv?id=eq." + productId;
+            JSONObject result = updateRecord(path, statusData);
+            
+            return result != null;
+        } catch (Exception e) {
+            Log.e(TAG, "Error updating product status: " + e.getMessage(), e);
+            return false;
         }
     }
 }
