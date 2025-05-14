@@ -18,17 +18,17 @@ import java.util.List;
 public class LocationAdapter extends RecyclerView.Adapter<LocationAdapter.LocationViewHolder> {
 
     private List<Location> locations;
-    private OnLocationSelectedListener listener;
+    private OnLocationClickListener listener;
 
-    public interface OnLocationSelectedListener {
-        void onLocationSelected(Location location);
+    public interface OnLocationClickListener {
+        void onLocationClick(Location location, int position);
     }
 
     public LocationAdapter(List<Location> locations) {
         this.locations = locations;
     }
 
-    public void setOnLocationSelectedListener(OnLocationSelectedListener listener) {
+    public void setOnLocationClickListener(OnLocationClickListener listener) {
         this.listener = listener;
     }
 
@@ -36,7 +36,7 @@ public class LocationAdapter extends RecyclerView.Adapter<LocationAdapter.Locati
     @Override
     public LocationViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(parent.getContext())
-                .inflate(R.layout.location, parent, false);
+                .inflate(R.layout.item_location, parent, false);
         return new LocationViewHolder(view);
     }
 
@@ -45,15 +45,15 @@ public class LocationAdapter extends RecyclerView.Adapter<LocationAdapter.Locati
         Location location = locations.get(position);
 
         // Set the region name
-        holder.tvName.setText(location.getName());
+        holder.locationName.setText(location.getName());
 
         // Set the associated ville name
-        holder.tvVilleName.setText("Ville : " + location.getVilleName());
+        holder.locationCity.setText(location.getVilleName());
         
         // Set click listener
         holder.itemView.setOnClickListener(v -> {
             if (listener != null) {
-                listener.onLocationSelected(location);
+                listener.onLocationClick(location, position);
             }
         });
     }
@@ -64,13 +64,13 @@ public class LocationAdapter extends RecyclerView.Adapter<LocationAdapter.Locati
     }
 
     static class LocationViewHolder extends RecyclerView.ViewHolder {
-        TextView tvName;
-        TextView tvVilleName;
+        TextView locationName;
+        TextView locationCity;
 
         LocationViewHolder(@NonNull View itemView) {
             super(itemView);
-            tvName = itemView.findViewById(R.id.tv_location_name);
-            tvVilleName = itemView.findViewById(R.id.tv_location_ville_name);
+            locationName = itemView.findViewById(R.id.location_name);
+            locationCity = itemView.findViewById(R.id.location_city);
         }
     }
     

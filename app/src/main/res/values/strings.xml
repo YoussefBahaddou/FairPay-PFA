@@ -175,4 +175,8 @@
     <string name="error_unauthorized">You are not authorized to access this feature.</string>
     <string name="type_colon">Type:</string>
     <string name="last_updated">Last updated:</string>
+    <string name="search_results">Search Results</string>
+    <string name="no_search_results">No results found for \"%s\"</string>
+    <string name="searching_for">Searching for: %1$s</string>
+    <string name="filtering_by_category">Filtering by category: %1$s</string>
 </resources>

@@ -16,11 +16,19 @@ import com.emsi.fairpay_maroc.models.Category;
 import java.util.List;
 
 public class CategoryAdapter extends RecyclerView.Adapter<CategoryAdapter.CategoryViewHolder> {
-
     private List<Category> categories;
+    private OnCategoryClickListener listener;
+
+    public interface OnCategoryClickListener {
+        void onCategoryClick(Category category, int position);
+    }
 
     public CategoryAdapter(List<Category> categories) {
         this.categories = categories;
+    }
+
+    public void setOnCategoryClickListener(OnCategoryClickListener listener) {
+        this.listener = listener;
     }
 
     @NonNull
@@ -44,6 +52,13 @@ public class CategoryAdapter extends RecyclerView.Adapter<CategoryAdapter.Catego
 
         // Set the category name
         holder.tvName.setText(category.getName());
+        
+        // Set click listener for the entire item
+        holder.itemView.setOnClickListener(v -> {
+            if (listener != null) {
+                listener.onCategoryClick(category, position);
+            }
+        });
     }
 
     @Override

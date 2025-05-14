@@ -4,6 +4,8 @@ import static com.emsi.fairpay_maroc.data.SupabaseClient.getHttpClient;
 
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.MenuItem;
 import android.widget.EditText;
 import android.widget.ImageButton;
@@ -71,9 +73,14 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     private static final int REQUEST_LOCATION_SELECTION = 1001;
     private int selectedCityId = -1;
     private String selectedCityName = "";
+    // Add these missing variable declarations
+    private int selectedCategoryId = -1;
+    private String selectedCategoryName = "";
     private ProgressBar progressBar;
     private RecyclerView cityItemsRecyclerView;
     private RecyclerView itemsRecyclerView;
+    private List<Item> allItems = new ArrayList<>(); // To store all items for filtering
+    private EditText searchBar;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -135,13 +142,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         });
 
         // Set up the search bar
-        EditText searchBar = findViewById(R.id.search_bar);
-        searchBar.setOnFocusChangeListener((v, hasFocus) -> {
-            if (hasFocus) {
-                // In a real app, you would show search suggestions or history
-                Toast.makeText(MainActivity.this, "Search functionality coming soon!", Toast.LENGTH_SHORT).show();
-            }
-        });
+        setupSearchBar();
 
         // Set up the recycler views
         setupRecyclerViewsWithoutItems();
@@ -161,6 +162,188 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 }
             }
         });
+    }
+
+    private TextView categoriesHeader;
+    private TextView locationsHeader;
+    private TextView updatesHeader;
+    private RecyclerView categoriesRecyclerView;
+    private RecyclerView locationsRecyclerView;
+    private TextView locationFilterText;
+
+    private void setupSearchBar() {
+        searchBar = findViewById(R.id.search_bar);
+        searchBar.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+                // Not needed
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                // Not needed
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                String query = s.toString().trim();
+                if (query.isEmpty()) {
+                    // If search is empty, apply the appropriate filters
+                    if (selectedCategoryId != -1 && selectedCityId != -1) {
+                        // Both category and location filters are active
+                        fetchItemsWithCategoryAndLocationFilter(selectedCategoryId, selectedCityId);
+                    } else if (selectedCategoryId != -1) {
+                        // Only category filter is active
+                        fetchItemsWithCategoryFilter(selectedCategoryId);
+                    } else if (selectedCityId != -1) {
+                        // Only location filter is active
+                        fetchItemsWithLocationFilter(selectedCityId);
+                    } else {
+                        // No filters are active
+                        fetchItemsFromDatabase(findViewById(R.id.updates_recycler_view));
+                    }
+                } else {
+                    // Search across all products regardless of filters
+                    searchProductsByName(query);
+                }
+            }
+        });
+    }
+
+    private void searchProductsByName(String query) {
+        progressBar = findViewById(R.id.progress_bar);
+        if (progressBar != null) {
+            progressBar.setVisibility(View.VISIBLE);
+        }
+        
+        new Thread(() -> {
+            try {
+                Log.d("Search", "Searching for products with name containing: " + query);
+                
+                // Use the SupabaseClient to search for products by name across all locations
+                // The ilike operator performs case-insensitive matching
+                String filter = "nom=ilike.*" + query + "*&status=neq.pending";
+                JSONArray results = SupabaseClient.queryTableWithFilter("produit_serv", filter, "*");
+                
+                List<Item> searchResults = new ArrayList<>();
+                
+                for (int i = 0; i < results.length(); i++) {
+                    JSONObject itemData = results.getJSONObject(i);
+                    
+                    // Extract the data from itemData
+                    int id = itemData.optInt("id", -1);
+                    String image = itemData.optString("image", "");
+                    String nom = itemData.optString("nom", "Unknown");
+                    String prix = itemData.optString("prix", "N/A");
+                    String conseil = itemData.optString("conseil", "No advice");
+                    String dateMiseAJour = itemData.optString("datemiseajour", "Unknown date");
+                    String timeDifference = calculateTimeDifference(dateMiseAJour);
+                    
+                    // Resolve foreign keys
+                    String categorieName = resolveForeignKey("categorie", "id", itemData.optInt("categorie_id", -1), "nom");
+                    String regionName = resolveForeignKey("ville", "id", itemData.optInt("ville_id", -1), "nom");
+                    String typeName = resolveForeignKey("type", "id", itemData.optInt("type_id", -1), "name");
+                    
+                    // Create an Item object with the ID
+                    Item item = new Item(id, image, nom, prix, conseil, timeDifference, categorieName, regionName, typeName);
+                    searchResults.add(item);
+                }
+                
+                // Update the UI on the main thread
+                runOnUiThread(() -> {
+                    if (progressBar != null) {
+                        progressBar.setVisibility(View.GONE);
+                    }
+                    
+                    RecyclerView updatesRecyclerView = findViewById(R.id.updates_recycler_view);
+                    if (updatesRecyclerView != null) {
+                        ItemAdapter adapter = new ItemAdapter(searchResults);
+                        
+                        // Set click listener for viewing items
+                        adapter.setOnItemClickListener((item, position) -> {
+                            int productId = item.getId();
+                            viewProduct(productId);
+                        });
+                        
+                        // Set action listener for editing/deleting items
+                        adapter.setOnItemActionListener(new ItemAdapter.OnItemActionListener() {
+                            @Override
+                            public void onEditItem(Item item, int position) {
+                                int productId = item.getId();
+                                editProduct(productId);
+                            }
+
+                            @Override
+                            public void onDeleteItem(Item item, int position) {
+                                int productId = item.getId();
+                                showDeleteConfirmationDialog(productId, position);
+                            }
+                        });
+                        
+                        updatesRecyclerView.setAdapter(adapter);
+                        
+                        // Show/hide no results message
+                        TextView noResultsText = findViewById(R.id.no_results_text);
+                        if (noResultsText != null) {
+                            if (searchResults.isEmpty()) {
+                                noResultsText.setVisibility(View.VISIBLE);
+                                updatesRecyclerView.setVisibility(View.GONE);
+                            } else {
+                                noResultsText.setVisibility(View.GONE);
+                                updatesRecyclerView.setVisibility(View.VISIBLE);
+                            }
+                        }
+                    }
+                
+                    // Update the location filter text to show we're searching
+                    TextView locationFilterText = findViewById(R.id.location_filter_text);
+                    if (locationFilterText != null) {
+                        locationFilterText.setText(getString(R.string.searching_for, query));
+                        locationFilterText.setVisibility(View.VISIBLE);
+                    }
+                });
+                
+            } catch (Exception e) {
+                Log.e("Search", "Error searching for products: " + e.getMessage(), e);
+                runOnUiThread(() -> {
+                    if (progressBar != null) {
+                        progressBar.setVisibility(View.GONE);
+                    }
+                    Toast.makeText(MainActivity.this, "Error searching: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                });
+            }
+        }).start();
+    }
+
+    private void updateRecyclerView(List<Item> items) {
+        RecyclerView updatesRecyclerView = findViewById(R.id.updates_recycler_view);
+        if (updatesRecyclerView != null) {
+            ItemAdapter adapter = new ItemAdapter(items);
+        
+            // Set click listener for viewing items
+            adapter.setOnItemClickListener((item, position) -> {
+                // Get the product ID from the item
+                int productId = item.getId();
+                viewProduct(productId);
+            });
+        
+            // Set action listener for editing/deleting items
+            adapter.setOnItemActionListener(new ItemAdapter.OnItemActionListener() {
+                @Override
+                public void onEditItem(Item item, int position) {
+                    int productId = item.getId();
+                    editProduct(productId);
+                }
+
+                @Override
+                public void onDeleteItem(Item item, int position) {
+                    int productId = item.getId();
+                    showDeleteConfirmationDialog(productId, position);
+                }
+            });
+        
+            updatesRecyclerView.setAdapter(adapter);
+        }
     }
 
     private void loadUserRole() {
@@ -354,9 +537,10 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             try {
                 Log.d("Fetching Category", "Starting to fetch categories from the database...");
                 
-                // Fetch categories from the "categorie" tablex
+                // Fetch categories from the "categorie" table
                 JSONArray categoriesArray = queryItems("categorie");
                 List<Category> categories = new ArrayList<>();
+                Map<String, Integer> categoryIds = new HashMap<>(); // Store category IDs
 
                 Log.d("Fetching Category", "Successfully fetched data from the database. Parsing categories...");
 
@@ -364,12 +548,14 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 for (int i = 0; i < categoriesArray.length(); i++) {
                     JSONObject categoryData = categoriesArray.getJSONObject(i);
 
+                    int id = categoryData.optInt("id", -1);
                     String name = categoryData.optString("nom", "Unknown");
                     String iconUrl = categoryData.optString("icon", "");
 
-                    Category category = new Category(iconUrl, name);
+                    Category category = new Category(id, iconUrl, name);
                     categories.add(category);
-                    Log.d("Fetching Category", "Parsed category: " + category.getName());
+                    categoryIds.put(name, id);
+                    Log.d("Fetching Category", "Parsed category: " + category.getName() + " with ID: " + id);
                 }
 
                 Log.d("Fetching Category", "All categories parsed successfully. Updating RecyclerView...");
@@ -377,6 +563,19 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 // Update the RecyclerView on the main thread
                 runOnUiThread(() -> {
                     CategoryAdapter categoryAdapter = new CategoryAdapter(categories);
+                    
+                    // Set click listener for category selection
+                    categoryAdapter.setOnCategoryClickListener((category, position) -> {
+                        selectedCategoryId = category.getId();
+                        selectedCategoryName = category.getName();
+                        
+                        // Update UI to show we're filtering by category
+                        updateCategoryFilterUI();
+                        
+                        // Fetch items with the selected category filter
+                        fetchItemsWithCategoryFilter(selectedCategoryId);
+                    });
+                    
                     categoriesRecyclerView.setAdapter(categoryAdapter);
                     Log.d("Fetching Category", "RecyclerView updated successfully.");
                 });
@@ -395,6 +594,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 // Fetch locations from the "region" table
                 JSONArray locationsArray = queryItems("region");
                 List<Location> locations = new ArrayList<>();
+                Map<String, Integer> villeIds = new HashMap<>(); // Store ville IDs
 
                 Log.d("Fetching Location", "Successfully fetched data from the database. Parsing locations...");
 
@@ -408,9 +608,10 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                     // Resolve ville name from ville_id
                     String villeName = resolveForeignKey("ville", "id", villeId, "nom");
 
-                    Location location = new Location(name, villeName);
+                    Location location = new Location(villeId, name, villeName);
                     locations.add(location);
-                    Log.d("Fetching Location", "Parsed location: " + location.getName() + ", Ville: " + location.getVilleName());
+                    villeIds.put(name, villeId);
+                    Log.d("Fetching Location", "Parsed location: " + location.getName() + ", Ville: " + location.getVilleName() + " with ID: " + villeId);
                 }
 
                 Log.d("Fetching Location", "All locations parsed successfully. Updating RecyclerView...");
@@ -418,6 +619,24 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 // Update the RecyclerView on the main thread
                 runOnUiThread(() -> {
                     LocationAdapter locationAdapter = new LocationAdapter(locations);
+                    
+                    // Set click listener for location selection
+                    locationAdapter.setOnLocationClickListener((location, position) -> {
+                        selectedCityId = location.getVilleId();
+                        selectedCityName = location.getVilleName();
+                        
+                        // Save the selected location
+                        saveSelectedLocation(selectedCityId, selectedCityName);
+                        
+                        // Update UI to show we're filtering by location
+                        updateLocationFilterUI();
+                        
+                        // Refresh the items with the selected location filter
+                        fetchItemsWithLocationFilter(selectedCityId);
+                        
+                        Toast.makeText(MainActivity.this, "Selected location: " + selectedCityName, Toast.LENGTH_SHORT).show();
+                    });
+                    
                     locationsRecyclerView.setAdapter(locationAdapter);
                     Log.d("Fetching Location", "RecyclerView updated successfully.");
                 });
@@ -950,4 +1169,252 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     private static final int REQUEST_EDIT_PRODUCT = 1003;
 }
 
+// Add this method to update the category filter UI
+private void updateCategoryFilterUI() {
+    TextView categoryFilterText = findViewById(R.id.category_filter_text);
+    if (categoryFilterText != null) {
+        if (selectedCategoryId != -1) {
+            categoryFilterText.setText(getString(R.string.filtering_by_category, selectedCategoryName));
+            categoryFilterText.setVisibility(View.VISIBLE);
+        } else {
+            categoryFilterText.setVisibility(View.GONE);
+        }
+    }
+}
+
+// Add this method to fetch items filtered by category
+private void fetchItemsWithCategoryFilter(int categoryId) {
+    RecyclerView updatesRecyclerView = findViewById(R.id.updates_recycler_view);
+    
+    // Show a loading indicator
+    ProgressBar progressBar = findViewById(R.id.progress_bar);
+    if (progressBar != null) {
+        progressBar.setVisibility(View.VISIBLE);
+    }
+    
+    new Thread(() -> {
+        try {
+            Log.d("Fetching Item", "Starting to fetch items from the database with category filter for category ID: " + categoryId);
+            
+            // Build the filter string based on whether we also have a location filter
+            String filter;
+            if (selectedCityId != -1) {
+                // Filter by both category and location
+                filter = "categorie_id=eq." + categoryId + "&ville_id=eq." + selectedCityId + "&status=neq.pending";
+            } else {
+                // Filter by category only
+                filter = "categorie_id=eq." + categoryId + "&status=neq.pending";
+            }
+            
+            // Fetch items from the "produit_serv" table with the filter
+            JSONArray itemsArray = SupabaseClient.queryTableWithFilter("produit_serv", filter, "*");
+            
+            Log.d("Fetching Item", "Query returned " + itemsArray.length() + " items");
+            
+            List<Item> items = new ArrayList<>();
+
+            // Map the JSON data to Item objects
+            for (int i = 0; i < itemsArray.length(); i++) {
+                JSONObject itemData = itemsArray.getJSONObject(i);
+                Log.d("Fetching Item", "Processing item: " + itemData.toString());
+
+                // Get the item ID
+                int id = itemData.optInt("id", -1);
+                
+                // Resolve foreign key data
+                String categorieName = resolveForeignKey("categorie", "id", itemData.optInt("categorie_id", -1), "nom");
+                String regionName = resolveForeignKey("ville", "id", itemData.optInt("ville_id", -1), "nom");
+                String typeName = resolveForeignKey("type", "id", itemData.optInt("type_id", -1), "name");
+
+                // Calculate the difference between current date and "datemiseajour"
+                String datemiseajour = itemData.optString("datemiseajour", "Unknown date");
+                String timeDifference = calculateTimeDifference(datemiseajour);
+                
+                // Map the data to an Item object
+                String image = itemData.optString("image", ""); 
+                String nom = itemData.optString("nom", "Unknown");
+                String prix = itemData.optString("prix", "N/A");
+                String conseil = itemData.optString("conseil", "No advice");
+
+                Item item = new Item(id, image, nom, prix, conseil, timeDifference, categorieName, regionName, typeName);
+                items.add(item);
+                Log.d("Fetching Item", "Parsed item: " + item.getNom());
+            }
+
+            Log.d("Fetching Item", "All items parsed successfully. Updating RecyclerView...");
+
+            // Update the RecyclerView on the main thread
+            runOnUiThread(() -> {
+                if (progressBar != null) {
+                    progressBar.setVisibility(View.GONE);
+                }
+                
+                if (items.isEmpty()) {
+                    Log.w("Fetching Item", "No items found for category ID: " + categoryId);
+                    Toast.makeText(this, "No items found in category " + selectedCategoryName, Toast.LENGTH_SHORT).show();
+                    
+                    // Show no results text
+                    TextView noResultsText = findViewById(R.id.no_results_text);
+                    if (noResultsText != null) {
+                        noResultsText.setVisibility(View.VISIBLE);
+                        updatesRecyclerView.setVisibility(View.GONE);
+                    }
+                } else {
+                    // Hide no results text
+                    TextView noResultsText = findViewById(R.id.no_results_text);
+                    if (noResultsText != null) {
+                        noResultsText.setVisibility(View.GONE);
+                        updatesRecyclerView.setVisibility(View.VISIBLE);
+                    }
+                    
+                    ItemAdapter updateAdapter = new ItemAdapter(items);
+                    
+                    // Set click listener for viewing items
+                    updateAdapter.setOnItemClickListener((item, position) -> {
+                        int productId = item.getId();
+                        viewProduct(productId);
+                    });
+                    
+                    // Set action listener for editing/deleting items
+                    updateAdapter.setOnItemActionListener(new ItemAdapter.OnItemActionListener() {
+                        @Override
+                        public void onEditItem(Item item, int position) {
+                            int productId = item.getId();
+                            editProduct(productId);
+                        }
+
+                        @Override
+                        public void onDeleteItem(Item item, int position) {
+                            int productId = item.getId();
+                            showDeleteConfirmationDialog(productId, position);
+                        }
+                    });
+                    
+                    updatesRecyclerView.setAdapter(updateAdapter);
+                    Log.d("Fetching Item", "RecyclerView updated successfully with " + items.size() + " items.");
+                }
+            });
+        } catch (Exception e) {
+            Log.e("Fetching Item", "Error occurred while fetching items: " + e.getMessage(), e);
+            runOnUiThread(() -> {
+                if (progressBar != null) {
+                    progressBar.setVisibility(View.GONE);
+                }
+                Toast.makeText(this, "Error fetching data: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            });
+        }
+    }).start();
+}
+
+// Add this method to fetch items filtered by both category and location
+private void fetchItemsWithCategoryAndLocationFilter(int categoryId, int cityId) {
+    RecyclerView updatesRecyclerView = findViewById(R.id.updates_recycler_view);
+    
+    // Show a loading indicator
+    ProgressBar progressBar = findViewById(R.id.progress_bar);
+    if (progressBar != null) {
+        progressBar.setVisibility(View.VISIBLE);
+    }
+    
+    new Thread(() -> {
+        try {
+            Log.d("Fetching Item", "Starting to fetch items with category ID: " + categoryId + " and city ID: " + cityId);
+            
+            // Filter by both category and location
+            String filter = "categorie_id=eq." + categoryId + "&ville_id=eq." + cityId + "&status=neq.pending";
+            
+            // Fetch items from the "produit_serv" table with the filter
+            JSONArray itemsArray = SupabaseClient.queryTableWithFilter("produit_serv", filter, "*");
+            
+            Log.d("Fetching Item", "Query returned " + itemsArray.length() + " items");
+            
+            List<Item> items = new ArrayList<>();
+
+            // Map the JSON data to Item objects
+            for (int i = 0; i < itemsArray.length(); i++) {
+                JSONObject itemData = itemsArray.getJSONObject(i);
+                
+                // Get the item ID
+                int id = itemData.optInt("id", -1);
+                
+                // Resolve foreign key data
+                String categorieName = resolveForeignKey("categorie", "id", itemData.optInt("categorie_id", -1), "nom");
+                String regionName = resolveForeignKey("ville", "id", itemData.optInt("ville_id", -1), "nom");
+                String typeName = resolveForeignKey("type", "id", itemData.optInt("type_id", -1), "name");
+
+                // Calculate the difference between current date and "datemiseajour"
+                String datemiseajour = itemData.optString("datemiseajour", "Unknown date");
+                String timeDifference = calculateTimeDifference(datemiseajour);
+                
+                // Map the data to an Item object
+                String image = itemData.optString("image", ""); 
+                String nom = itemData.optString("nom", "Unknown");
+                String prix = itemData.optString("prix", "N/A");
+                String conseil = itemData.optString("conseil", "No advice");
+
+                Item item = new Item(id, image, nom, prix, conseil, timeDifference, categorieName, regionName, typeName);
+                items.add(item);
+            }
+
+            // Update the RecyclerView on the main thread
+            runOnUiThread(() -> {
+                if (progressBar != null) {
+                    progressBar.setVisibility(View.GONE);
+                }
+                
+                if (items.isEmpty()) {
+                    Log.w("Fetching Item", "No items found for category ID: " + categoryId + " and city ID: " + cityId);
+                    Toast.makeText(this, "No items found in category " + selectedCategoryName + " in " + selectedCityName, Toast.LENGTH_SHORT).show();
+                    
+                    // Show no results text
+                    TextView noResultsText = findViewById(R.id.no_results_text);
+                    if (noResultsText != null) {
+                        noResultsText.setVisibility(View.VISIBLE);
+                        updatesRecyclerView.setVisibility(View.GONE);
+                    }
+                } else {
+                    // Hide no results text
+                    TextView noResultsText = findViewById(R.id.no_results_text);
+                    if (noResultsText != null) {
+                        noResultsText.setVisibility(View.GONE);
+                        updatesRecyclerView.setVisibility(View.VISIBLE);
+                    }
+                    
+                    ItemAdapter updateAdapter = new ItemAdapter(items);
+                    
+                    // Set click listener for viewing items
+                    updateAdapter.setOnItemClickListener((item, position) -> {
+                        int productId = item.getId();
+                        viewProduct(productId);
+                    });
+                    
+                    // Set action listener for editing/deleting items
+                    updateAdapter.setOnItemActionListener(new ItemAdapter.OnItemActionListener() {
+                        @Override
+                        public void onEditItem(Item item, int position) {
+                            int productId = item.getId();
+                            editProduct(productId);
+                        }
+
+                        @Override
+                        public void onDeleteItem(Item item, int position) {
+                            int productId = item.getId();
+                            showDeleteConfirmationDialog(productId, position);
+                        }
+                    });
+                    
+                    updatesRecyclerView.setAdapter(updateAdapter);
+                }
+            });
+        } catch (Exception e) {
+            Log.e("Fetching Item", "Error occurred while fetching items: " + e.getMessage(), e);
+            runOnUiThread(() -> {
+                if (progressBar != null) {
+                    progressBar.setVisibility(View.GONE);
+                }
+                Toast.makeText(this, "Error fetching data: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            });
+        }
+    }).start();
+}
                     

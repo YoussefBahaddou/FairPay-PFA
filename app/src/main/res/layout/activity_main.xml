@@ -69,8 +69,18 @@
                 android:orientation="vertical"
                 android:padding="16dp">
 
+                <TextView
+                    android:id="@+id/no_results_text"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="No results found"
+                    android:textAlignment="center"
+                    android:padding="16dp"
+                    android:visibility="gone" />
+
                 <!-- Categories Section -->
                 <TextView
+                    android:id="@+id/categories_header"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="8dp"
@@ -99,6 +109,19 @@
                     android:layout_marginTop="8dp"
                     android:layout_marginBottom="8dp" />
                 <TextView
+                    android:id="@+id/category_filter_text"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="#FFF0E6"
+                    android:padding="8dp"
+                    android:textAlignment="center"
+                    android:textColor="#CC6600"
+                    android:textStyle="italic"
+                    android:visibility="gone"
+                    android:layout_marginTop="8dp"
+                    android:layout_marginBottom="8dp" />
+                <TextView
+                    android:id="@+id/locations_header"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="8dp"
@@ -127,6 +150,7 @@
 
                 <!-- Recent Price Updates Section -->
                 <TextView
+                    android:id="@+id/updates_header"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="8dp"

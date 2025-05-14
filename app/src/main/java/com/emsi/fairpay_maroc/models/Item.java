@@ -11,13 +11,8 @@ public class Item {
     private String regionName;
     private String typeName;
 
-    // Original constructor (for backward compatibility)
-    public Item(String image, String nom, String prix, String conseil, String timeDifference, String categorieName, String regionName, String typeName) {
-        this(-1, image, nom, prix, conseil, timeDifference, categorieName, regionName, typeName);
-    }
-
-    // New constructor with ID
-    public Item(int id, String image, String nom, String prix, String conseil, String timeDifference, String categorieName, String regionName, String typeName) {
+    public Item(int id, String image, String nom, String prix, String conseil, String timeDifference, 
+                String categorieName, String regionName, String typeName) {
         this.id = id;
         this.image = image;
         this.nom = nom;
@@ -27,6 +22,12 @@ public class Item {
         this.categorieName = categorieName;
         this.regionName = regionName;
         this.typeName = typeName;
+    }
+
+    // Constructor without ID for backward compatibility
+    public Item(String image, String nom, String prix, String conseil, String timeDifference, 
+                String categorieName, String regionName, String typeName) {
+        this(-1, image, nom, prix, conseil, timeDifference, categorieName, regionName, typeName);
     }
 
     public int getId() {

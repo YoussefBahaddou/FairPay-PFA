@@ -1,20 +1,23 @@
 package com.emsi.fairpay_maroc.models;
 
 public class Location {
+    private int villeId;
     private String name;
     private String villeName;
-    private int villeId;
 
-    public Location(String name, String villeName) {
+    public Location(int villeId, String name, String villeName) {
+        this.villeId = villeId;
         this.name = name;
         this.villeName = villeName;
-        this.villeId = -1;
     }
 
-    public Location(String name, String villeName, int villeId) {
-        this.name = name;
-        this.villeName = villeName;
-        this.villeId = villeId;
+    // Constructor without ID for backward compatibility
+    public Location(String name, String villeName) {
+        this(-1, name, villeName);
+    }
+
+    public int getVilleId() {
+        return villeId;
     }
 
     public String getName() {
@@ -23,9 +26,5 @@ public class Location {
 
     public String getVilleName() {
         return villeName;
-    }
-    
-    public int getVilleId() {
-        return villeId;
     }
 }
