@@ -23,7 +23,8 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/navigation_drawer_open"
             android:src="@drawable/ic_menu"
-            android:padding="12dp" />
+            android:padding="12dp"
+            android:stateListAnimator="@animator/button_state_animator" />
 
         <ImageView
             android:id="@+id/logo"
@@ -34,14 +35,18 @@
             android:contentDescription="@drawable/logo"
             android:src="@drawable/logo2" />
 
-        <ImageView
+        <de.hdodenhof.circleimageview.CircleImageView
             android:id="@+id/profile_icon"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
             android:layout_alignParentEnd="true"
             android:layout_centerVertical="true"
             android:layout_marginEnd="16dp"
-            android:contentDescription="@drawable/user"
-            android:src="@drawable/user"/>
+            android:contentDescription="@string/profile"
+            android:src="@drawable/user"
+            app:civ_border_color="@color/white"
+            app:civ_border_width="1dp"
+            android:transitionName="profile_image_transition"
+            android:foreground="?attr/selectableItemBackgroundBorderless" />
     </RelativeLayout>
 </androidx.appcompat.widget.Toolbar>

@@ -259,36 +259,92 @@ public class SupabaseClient {
      * @param data The data to update as JSONObject
      * @return The updated data as JSONObject
      */
-    public static JSONObject updateRecord(String path, JSONObject data) throws IOException, JSONException {
-        String url = SUPABASE_URL + "/rest/v1/" + path;
-        RequestBody body = RequestBody.create(data.toString(), JSON);
-        
+    public static boolean updateRecord(String table, int id, JSONObject data) throws IOException, JSONException {
+        // Make sure we have the correct URL format with /rest/v1/
+        String url = SUPABASE_URL;
+        if (!url.endsWith("/")) {
+            url += "/";
+        }
+        if (!url.endsWith("rest/v1/")) {
+            url += "rest/v1/";
+        }
+
+        url += table + "?id=eq." + id;
+
         Log.d(TAG, "Update URL: " + url);
-        Log.d(TAG, "Update Data: " + data.toString());
-        
+
+        MediaType JSON = MediaType.parse("application/json; charset=utf-8");
+        RequestBody body = RequestBody.create(data.toString(), JSON);
+
         Request request = new Request.Builder()
                 .url(url)
                 .addHeader("apikey", SUPABASE_KEY)
                 .addHeader("Authorization", "Bearer " + SUPABASE_KEY)
                 .addHeader("Content-Type", "application/json")
-                .addHeader("Prefer", "return=representation")
+                .addHeader("Prefer", "return=minimal")
                 .patch(body)
                 .build();
         
         try (Response response = getHttpClient().newCall(request).execute()) {
-            String responseData = response.body().string();
-            Log.d(TAG, "Response: " + responseData);
-            
             if (!response.isSuccessful()) {
-                Log.e(TAG, "Error response: " + responseData);
-                throw new IOException("Unexpected code " + response + ": " + responseData);
+                String responseData = response.body().string();
+                Log.e(TAG, "Error updating record: " + responseData);
+                return false;
             }
-            
-            JSONArray resultArray = new JSONArray(responseData);
-            return resultArray.getJSONObject(0);
+            return true;
         } catch (Exception e) {
             Log.e(TAG, "Error updating record: " + e.getMessage(), e);
             throw e;
+        }
+    }
+
+    public static JSONObject updateRecord(String path, JSONObject data) throws IOException, JSONException {
+        // Make sure we have the correct URL format
+        String url = SUPABASE_URL;
+        if (!url.endsWith("/")) {
+            url += "/";
+        }
+        if (!url.endsWith("rest/v1/")) {
+            url += "rest/v1/";
+        }
+
+        url += path;
+
+        Log.d(TAG, "Update URL: " + url);
+
+        MediaType JSON = MediaType.parse("application/json; charset=utf-8");
+        RequestBody body = RequestBody.create(data.toString(), JSON);
+
+        Request request = new Request.Builder()
+                .url(url)
+                .addHeader("apikey", SUPABASE_KEY)
+                .addHeader("Authorization", "Bearer " + SUPABASE_KEY)
+                .addHeader("Content-Type", "application/json")
+                .patch(body)
+                .build();
+
+        try (Response response = getHttpClient().newCall(request).execute()) {
+            String responseData = response.body().string();
+
+            if (!response.isSuccessful()) {
+                Log.e(TAG, "Error updating record: " + responseData);
+                throw new IOException("Unexpected code " + response + ": " + responseData);
+            }
+
+            return new JSONObject(responseData);
+        } catch (Exception e) {
+            Log.e(TAG, "Error updating record: " + e.getMessage(), e);
+            throw e;
+        }
+    }
+
+    public static boolean updateRecordBoolean(String table, JSONObject data) throws IOException, JSONException {
+        try {
+            JSONObject result = updateRecord(table, data);
+            return result != null && !result.has("error");
+        } catch (Exception e) {
+            Log.e(TAG, "Error in updateRecordBoolean: " + e.getMessage(), e);
+            return false;
         }
     }
 
@@ -434,7 +490,7 @@ public class SupabaseClient {
             
             String path = "produit_serv?id=eq." + productId;
             JSONObject result = updateRecord(path, statusData);
-            
+
             return result != null;
         } catch (Exception e) {
             Log.e(TAG, "Error updating product status: " + e.getMessage(), e);

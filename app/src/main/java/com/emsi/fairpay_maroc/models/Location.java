@@ -4,16 +4,20 @@ public class Location {
     private int villeId;
     private String name;
     private String villeName;
+    private String imageUrl;
 
     public Location(int villeId, String name, String villeName) {
         this.villeId = villeId;
         this.name = name;
         this.villeName = villeName;
+        this.imageUrl = "";
     }
 
-    // Constructor without ID for backward compatibility
-    public Location(String name, String villeName) {
-        this(-1, name, villeName);
+    public Location(int villeId, String name, String villeName, String imageUrl) {
+        this.villeId = villeId;
+        this.name = name;
+        this.villeName = villeName;
+        this.imageUrl = imageUrl;
     }
 
     public int getVilleId() {
@@ -26,5 +30,9 @@ public class Location {
 
     public String getVilleName() {
         return villeName;
+    }
+
+    public String getImageUrl() {
+        return imageUrl;
     }
 }

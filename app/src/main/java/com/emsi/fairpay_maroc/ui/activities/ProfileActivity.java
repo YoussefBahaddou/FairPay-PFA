@@ -1,331 +1,311 @@
 package com.emsi.fairpay_maroc.ui.activities;
 
-import android.content.SharedPreferences;
+import android.app.Activity;
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageButton;
-import android.widget.ProgressBar;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.Nullable;
+import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 
 import com.emsi.fairpay_maroc.R;
 import com.emsi.fairpay_maroc.data.SupabaseClient;
-import com.emsi.fairpay_maroc.utils.LanguageHelper;
-import com.google.android.material.button.MaterialButton;
-import com.google.android.material.textfield.TextInputEditText;
+import com.emsi.fairpay_maroc.utils.SharedPreferencesManager;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.regex.Pattern;
+import java.io.InputStream;
+import java.util.UUID;
 
-public class ProfileActivity extends BaseActivity {
+import de.hdodenhof.circleimageview.CircleImageView;
 
+public class ProfileActivity extends AppCompatActivity {
     private static final String TAG = "ProfileActivity";
-    
-    // UI components
-    private TextInputEditText etFirstName, etLastName, etUsername, etEmail, etPhone;
-    private TextInputEditText etCurrentPassword, etNewPassword, etConfirmNewPassword;
-    private MaterialButton btnSaveChanges;
-    private ProgressBar progressBar;
-    
-    // User data
+
+    private CircleImageView profileImage;
+    private EditText etName;
+    private EditText etEmail;
+    private EditText etPhone;
+    private Button btnSave;
+
+    private Uri selectedImageUri;
+    private boolean imageChanged = false;
     private int userId;
-    private JSONObject userData;
+    private String currentImageUrl;
+
+    // Activity result launcher for image selection
+    private final ActivityResultLauncher<Intent> imagePickerLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
+                    selectedImageUri = result.getData().getData();
+                    if (selectedImageUri != null) {
+                        profileImage.setImageURI(selectedImageUri);
+                        imageChanged = true;
+                    }
+                }
+            });
 
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_profile);
-        
-        // Apply layout direction based on language
-        applyLayoutDirection();
-        
+
         // Initialize UI components
-        initializeViews();
-        
-        // Set up toolbar and back button
-        setupToolbar();
-        
+        initViews();
+
+        // Get user ID from SharedPreferences
+        userId = SharedPreferencesManager.getInstance(this).getUserId();
+
         // Load user data
         loadUserData();
-        
-        // Set up save button click listener
-        btnSaveChanges.setOnClickListener(v -> validateAndSaveChanges());
     }
 
-    @Override
-    public void onBackPressed() {
-        super.onBackPressed();
-        overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right);
-    }
-    
-    private void applyLayoutDirection() {
-        String languageCode = LanguageHelper.getLanguage(this);
-        if ("ar".equals(languageCode)) {
-            getWindow().getDecorView().setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
-        } else {
-            getWindow().getDecorView().setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
-        }
-    }
-
-    private void initializeViews() {
-        // Personal information fields
-        etFirstName = findViewById(R.id.et_first_name);
-        etLastName = findViewById(R.id.et_last_name);
-        etUsername = findViewById(R.id.et_username);
-        etEmail = findViewById(R.id.et_email);
-        etPhone = findViewById(R.id.et_phone);
-        
-        // Password fields
-        etCurrentPassword = findViewById(R.id.et_current_password);
-        etNewPassword = findViewById(R.id.et_new_password);
-        etConfirmNewPassword = findViewById(R.id.et_confirm_new_password);
-        
-        // Button and progress bar
-        btnSaveChanges = findViewById(R.id.btn_save_changes);
-        progressBar = findViewById(R.id.progress_bar);
-    }
-    
-    private void setupToolbar() {
+    private void initViews() {
+        // Toolbar setup
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayShowTitleEnabled(false);
         }
-        
+
+        // Back button
         ImageButton backButton = findViewById(R.id.back_button);
         backButton.setOnClickListener(v -> onBackPressed());
+
+        // Profile image
+        profileImage = findViewById(R.id.profile_image);
+        profileImage.setOnClickListener(v -> openImagePicker());
+
+        // Form fields
+        etName = findViewById(R.id.et_name);
+        etEmail = findViewById(R.id.et_email);
+        etPhone = findViewById(R.id.et_phone);
+
+        // Save button
+        btnSave = findViewById(R.id.btn_save);
+        btnSave.setOnClickListener(v -> saveUserProfile());
     }
-    
+
+    private void openImagePicker() {
+        Intent intent = new Intent(Intent.ACTION_PICK);
+        intent.setType("image/*");
+        imagePickerLauncher.launch(intent);
+    }
+
     private void loadUserData() {
-        // Get user ID from SharedPreferences
-        SharedPreferences prefs = getSharedPreferences("FairPayPrefs", MODE_PRIVATE);
-        userId = prefs.getInt("user_id", -1);
-        
-        if (userId == -1) {
-            Toast.makeText(this, R.string.error_loading_profile, Toast.LENGTH_SHORT).show();
-            finish();
-            return;
-        }
-        
-        // Show progress bar
-        progressBar.setVisibility(View.VISIBLE);
-        
-        // Fetch user data from database
+        // Show loading state
+        findViewById(R.id.progress_bar).setVisibility(View.VISIBLE);
+
         new Thread(() -> {
             try {
-                JSONArray results = SupabaseClient.queryTable(
-                        "utilisateur", 
-                        "id", 
-                        String.valueOf(userId), 
-                        "*");
-                
-                if (results.length() > 0) {
-                    userData = results.getJSONObject(0);
-                    
-                    // Update UI on main thread
+                JSONArray result = SupabaseClient.queryTable(
+                        "users",
+                        "id",
+                        String.valueOf(userId),
+                        "id,name,email,phone,profile_image"
+                );
+
+                if (result.length() > 0) {
+                    JSONObject user = result.getJSONObject(0);
+
                     runOnUiThread(() -> {
                         try {
-                            // Split full name into first and last name
-                            String nom = userData.optString("nom", "");
-                            String prenom = userData.optString("prenom", "");
-                            
-                            etFirstName.setText(prenom);
-                            etLastName.setText(nom);
-                            etUsername.setText(userData.optString("username", ""));
-                            etEmail.setText(userData.optString("email", ""));
-                            etPhone.setText(userData.optString("telephone", ""));
-                            
-                            progressBar.setVisibility(View.GONE);
+                            etName.setText(user.optString("name", ""));
+                            etEmail.setText(user.optString("email", ""));
+                            etPhone.setText(user.optString("phone", ""));
+
+                            // Load profile image if available
+                            currentImageUrl = user.optString("profile_image", null);
+                            if (currentImageUrl != null && !currentImageUrl.isEmpty()) {
+                                // Load image using your preferred image loading library
+                                // For example with Glide:
+                                // Glide.with(this).load(currentImageUrl).into(profileImage);
+                            }
+
+                            findViewById(R.id.progress_bar).setVisibility(View.GONE);
+                            findViewById(R.id.content_layout).setVisibility(View.VISIBLE);
+
                         } catch (Exception e) {
-                            Log.e(TAG, "Error setting user data to UI: " + e.getMessage());
-                            showError(R.string.error_loading_profile);
+                            Log.e(TAG, "Error setting user data to UI", e);
+                            showError(getString(R.string.error_loading_profile));
                         }
                     });
                 } else {
-                    showError(R.string.user_not_found);
+                    runOnUiThread(() -> showError(getString(R.string.user_not_found)));
                 }
+
             } catch (Exception e) {
-                Log.e(TAG, "Error loading user data: " + e.getMessage());
-                showError(R.string.error_loading_profile);
+                Log.e(TAG, "Error loading user data", e);
+                runOnUiThread(() -> showError(getString(R.string.error_loading_profile)));
             }
         }).start();
     }
-    
-    private void validateAndSaveChanges() {
-        // Validate personal information fields
-        String firstName = etFirstName.getText().toString().trim();
-        String lastName = etLastName.getText().toString().trim();
-        String username = etUsername.getText().toString().trim();
+
+    private void saveUserProfile() {
+        // Validate inputs
+        String name = etName.getText().toString().trim();
         String email = etEmail.getText().toString().trim();
         String phone = etPhone.getText().toString().trim();
-        
-        // Validate password fields
-        String currentPassword = etCurrentPassword.getText().toString();
-        String newPassword = etNewPassword.getText().toString();
-        String confirmNewPassword = etConfirmNewPassword.getText().toString();
-        
-        // Basic validation
-        if (firstName.isEmpty() || lastName.isEmpty() || username.isEmpty() || 
-            email.isEmpty() || phone.isEmpty()) {
-            Toast.makeText(this, R.string.all_fields_required, Toast.LENGTH_SHORT).show();
+
+        if (name.isEmpty() || email.isEmpty()) {
+            Toast.makeText(this, R.string.please_fill_required_fields, Toast.LENGTH_SHORT).show();
             return;
         }
-        
-        // Email validation
-        if (!isValidEmail(email)) {
-            Toast.makeText(this, R.string.invalid_email, Toast.LENGTH_SHORT).show();
-            return;
-        }
-        
-        // Phone validation
-        if (!isValidPhone(phone)) {
-            Toast.makeText(this, R.string.invalid_phone, Toast.LENGTH_SHORT).show();
-            return;
-        }
-        
-        // Password validation (only if user wants to change password)
-        boolean changingPassword = !currentPassword.isEmpty() || 
-                                  !newPassword.isEmpty() || 
-                                  !confirmNewPassword.isEmpty();
-        
-        if (changingPassword) {
-            if (currentPassword.isEmpty()) {
-                Toast.makeText(this, R.string.current_password_required, Toast.LENGTH_SHORT).show();
-                return;
-            }
-            
-            if (newPassword.isEmpty()) {
-                Toast.makeText(this, R.string.new_password_required, Toast.LENGTH_SHORT).show();
-                return;
-            }
-            
-            if (newPassword.length() < 6) {
-                Toast.makeText(this, R.string.password_too_short, Toast.LENGTH_SHORT).show();
-                return;
-            }
-            
-            if (!newPassword.equals(confirmNewPassword)) {
-                Toast.makeText(this, R.string.passwords_dont_match, Toast.LENGTH_SHORT).show();
-                return;
-            }
-        }
-        
-        // Show progress bar
-        progressBar.setVisibility(View.VISIBLE);
-        btnSaveChanges.setEnabled(false);
-        
-        // Save changes in a background thread
+
+        // Show loading state
+        btnSave.setEnabled(false);
+        findViewById(R.id.progress_bar).setVisibility(View.VISIBLE);
+
         new Thread(() -> {
+            // Declare success variable at this scope level so it's accessible in the runOnUiThread block
+            boolean success = false;
+
             try {
-                // First, verify current password if changing password
-                if (changingPassword) {
-                    boolean passwordVerified = verifyCurrentPassword(currentPassword);
-                    if (!passwordVerified) {
-                        showError(R.string.incorrect_current_password);
-                        return;
+                // Create JSON object with user data
+                JSONObject userData = new JSONObject();
+                userData.put("name", name);
+                userData.put("email", email);
+                userData.put("phone", phone);
+
+                // Upload image if changed
+                if (imageChanged && selectedImageUri != null) {
+                    String imageUrl = uploadImageToStorage(selectedImageUri);
+                    if (imageUrl != null) {
+                        userData.put("profile_image", imageUrl);
                     }
                 }
-                
-                // Check if username is already taken (if changed)
-                String currentUsername = userData.optString("username", "");
-                if (!username.equals(currentUsername)) {
-                    boolean usernameExists = SupabaseClient.valueExists("utilisateur", "username", username);
-                    if (usernameExists) {
-                        showError(R.string.username_already_taken);
-                        return;
+
+                // Update user data in Supabase
+                JSONObject fullData = new JSONObject(userData.toString());
+                try {
+                    // Add the user ID to the JSON object if needed
+                    fullData.put("id", userId);
+
+                    // Call updateRecord and handle the result
+                    JSONObject result = SupabaseClient.updateRecord("users", fullData);
+                    success = (result != null); // Or use a more specific check based on your API response
+
+                } catch (JSONException e) {
+                    Log.e(TAG, "Error adding ID to JSON object", e);
+                }
+
+                // Final success value is used in the UI update
+                final boolean finalSuccess = success;
+
+                runOnUiThread(() -> {
+                    findViewById(R.id.progress_bar).setVisibility(View.GONE);
+                    btnSave.setEnabled(true);
+
+                    if (finalSuccess) {
+                        Toast.makeText(this, R.string.profile_updated_successfully, Toast.LENGTH_SHORT).show();
+                        // Update shared preferences if needed
+                        SharedPreferencesManager.getInstance(this).saveUserName(name);
+
+                        // Set result and finish
+                        setResult(RESULT_OK);
+                        finish();
+                    } else {
+                        Toast.makeText(this, R.string.error_updating_profile, Toast.LENGTH_SHORT).show();
                     }
-                }
-                
-                // Check if email is already taken (if changed)
-                String currentEmail = userData.optString("email", "");
-                if (!email.equals(currentEmail)) {
-                    boolean emailExists = SupabaseClient.valueExists("utilisateur", "email", email);
-                    if (emailExists) {
-                        showError(R.string.email_already_taken);
-                        return;
-                    }
-                }
-                
-                // Create JSON object with updated user data
-                JSONObject updatedData = new JSONObject();
-                updatedData.put("nom", lastName);
-                updatedData.put("prenom", firstName);
-                updatedData.put("username", username);
-                updatedData.put("email", email);
-                updatedData.put("telephone", phone);
-                
-                // Add new password if changing password
-                if (changingPassword) {
-                    updatedData.put("password", newPassword);
-                }
-                
-                // Update user data in database
-                updateUserData(updatedData);
-                
+                });
+
             } catch (Exception e) {
-                Log.e(TAG, "Error saving changes: " + e.getMessage());
-                showError(R.string.error_saving_changes);
+                Log.e(TAG, "Error saving user profile", e);
+                runOnUiThread(() -> {
+                    findViewById(R.id.progress_bar).setVisibility(View.GONE);
+                    btnSave.setEnabled(true);
+                    Toast.makeText(this, R.string.error_updating_profile, Toast.LENGTH_SHORT).show();
+                });
             }
         }).start();
     }
-    
-    private boolean verifyCurrentPassword(String currentPassword) throws JSONException, IOException {
-        // In a real app, you would hash the password and compare with the stored hash
-        // For simplicity, we're comparing plain text passwords here
-        String storedPassword = userData.optString("password", "");
-        return storedPassword.equals(currentPassword);
-    }
-    
-    private void updateUserData(JSONObject updatedData) {
-        try {
-            // Create the URL for the PATCH request
-            String url = "utilisateur?id=eq." + userId;
-            
-            // Make the update request
-            JSONObject response = SupabaseClient.updateRecord(url, updatedData);
-            
-            // Update successful
-            runOnUiThread(() -> {
-                progressBar.setVisibility(View.GONE);
-                btnSaveChanges.setEnabled(true);
-                Toast.makeText(this, R.string.profile_updated_successfully, Toast.LENGTH_SHORT).show();
-                
-                // Reload user data to reflect changes
-                loadUserData();
-                
-                // Clear password fields
-                etCurrentPassword.setText("");
-                etNewPassword.setText("");
-                etConfirmNewPassword.setText("");
-            });
-            
-        } catch (Exception e) {
-            Log.e(TAG, "Error updating user data: " + e.getMessage());
-            showError(R.string.error_saving_changes);
+
+    private String uploadImageToStorage(Uri imageUri) throws IOException, JSONException {
+        // Get the file extension
+        String fileExtension = getFileExtension(imageUri);
+        if (fileExtension == null) {
+            fileExtension = "jpg"; // Default to jpg if we can't determine the extension
         }
+
+        // Generate a unique filename using UUID
+        String fileName = "profile_" + UUID.randomUUID().toString() + "." + fileExtension;
+
+        // Convert the image to bytes
+        InputStream inputStream = getContentResolver().openInputStream(imageUri);
+        ByteArrayOutputStream byteBuffer = new ByteArrayOutputStream();
+        int bufferSize = 1024;
+        byte[] buffer = new byte[bufferSize];
+        int len;
+        while ((len = inputStream.read(buffer)) != -1) {
+            byteBuffer.write(buffer, 0, len);
+        }
+        inputStream.close();
+        byte[] imageBytes = byteBuffer.toByteArray();
+
+        // Determine content type
+        String contentType = "image/jpeg"; // Default
+        if (fileExtension.equalsIgnoreCase("png")) {
+            contentType = "image/png";
+        } else if (fileExtension.equalsIgnoreCase("gif")) {
+            contentType = "image/gif";
+        }
+
+        // Upload to Supabase Storage
+        return SupabaseClient.uploadFile("profiles", fileName, imageBytes, contentType);
     }
-    
-    private boolean isValidEmail(String email) {
-        String emailPattern = "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$";
-        return Pattern.compile(emailPattern).matcher(email).matches();
+
+    private String getFileExtension(Uri uri) {
+        String extension = null;
+
+        try {
+            String mimeType = getContentResolver().getType(uri);
+            if (mimeType != null) {
+                extension = mimeType.substring(mimeType.lastIndexOf("/") + 1);
+            } else {
+                String path = uri.getPath();
+                if (path != null && path.contains(".")) {
+                    extension = path.substring(path.lastIndexOf(".") + 1);
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error getting file extension", e);
+        }
+
+        return extension;
     }
-    
-    private boolean isValidPhone(String phone) {
-        // Simple validation for phone number (at least 8 digits)
-        return phone.replaceAll("[^0-9]", "").length() >= 8;
-    }
-    
-    private void showError(int messageResId) {
+
+    private void showError(String message) {
         runOnUiThread(() -> {
-            progressBar.setVisibility(View.GONE);
-            btnSaveChanges.setEnabled(true);
-            Toast.makeText(this, messageResId, Toast.LENGTH_SHORT).show();
+            findViewById(R.id.progress_bar).setVisibility(View.GONE);
+            findViewById(R.id.error_layout).setVisibility(View.VISIBLE);
+            findViewById(R.id.content_layout).setVisibility(View.GONE);
+
+            // Set error message
+            if (findViewById(R.id.tv_error_message) != null) {
+                ((android.widget.TextView) findViewById(R.id.tv_error_message)).setText(message);
+            }
+
+            // Retry button
+            if (findViewById(R.id.btn_retry) != null) {
+                findViewById(R.id.btn_retry).setOnClickListener(v -> {
+                    findViewById(R.id.error_layout).setVisibility(View.GONE);
+                    loadUserData();
+                });
+            }
         });
     }
 }

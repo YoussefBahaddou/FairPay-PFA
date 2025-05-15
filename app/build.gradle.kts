@@ -47,6 +47,8 @@ dependencies {
     implementation ("org.osmdroid:osmdroid-wms:6.1.14")
     implementation ("org.osmdroid:osmdroid-mapsforge:6.1.14")
     implementation ("org.osmdroid:osmdroid-geopackage:6.1.14")
+    implementation ("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
+    implementation ("de.hdodenhof:circleimageview:3.1.0")
 
     // Testing
     testImplementation(libs.junit)

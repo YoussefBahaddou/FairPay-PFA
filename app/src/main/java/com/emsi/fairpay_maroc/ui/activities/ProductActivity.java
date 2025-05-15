@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
 import android.provider.MediaStore;
 import android.text.TextUtils;
 import android.util.Log;
@@ -120,56 +121,12 @@ public class ProductActivity extends BaseActivity {
         fetchTypes();
         
         // If editing or viewing, load product data
-        if (currentMode == MODE_ADD) {
-            // Add new product
-            JSONObject data = new JSONObject();
-            String productName = etProductName.getText().toString().trim();
-            String productPrice = etProductPrice.getText().toString().trim();
-            String productAdvice = etProductAdvice.getText().toString().trim();
-            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
-            String currentDate = dateFormat.format(new Date());
-            int selectedCategoryId = spinnerCategory.getSelectedItemPosition() + 1;
-            int selectedCityId = spinnerCity.getSelectedItemPosition() + 1;
-            int selectedTypeId = spinnerType.getSelectedItemPosition() + 1;
-            try {
-                data.put("nom", productName);
-                data.put("prix", productPrice);
-                data.put("conseil", productAdvice);
-                data.put("datemiseajour", currentDate);
-                data.put("categorie_id", selectedCategoryId);
-                data.put("ville_id", selectedCityId);
-                data.put("type_id", selectedTypeId);
-                data.put("submitted_by", userId);
-                data.put("status", "pending"); // Set status to pending for new products
-                
-                // Handle image if available
-                if (imageChanged && selectedImageUri != null) {
-                    // Process and add image data
-                    // ...
-                }
-                
-                // Submit the product
-                JSONObject result = SupabaseClient.insertIntoTable("produit_serv", data);
-                
-                runOnUiThread(() -> {
-                    progressBar.setVisibility(View.GONE);
-                    btnSubmit.setEnabled(true);
-                    Toast.makeText(this, R.string.product_added_successfully, Toast.LENGTH_SHORT).show();
-                    
-                    // Return to previous screen
-                    setResult(RESULT_OK);
-                    finish();
-                });
-            } catch (JSONException e) {
-                Log.e("ProductActivity", "Error creating JSON data: " + e.getMessage(), e);
-                Toast.makeText(this, "Error saving product data", Toast.LENGTH_SHORT).show();
-                return; // Return from the method or handle the error appropriately
-            } catch (IOException e) {
-                Log.e("ProductActivity", "Network error while saving product: " + e.getMessage(), e);
-                Toast.makeText(this, "Network error while saving product", Toast.LENGTH_SHORT).show();
-            } catch (Exception e) {
-                Log.e("ProductActivity", "Error saving product: " + e.getMessage(), e);
-                Toast.makeText(this, "Error saving product", Toast.LENGTH_SHORT).show();
+        if (currentMode == MODE_EDIT || currentMode == MODE_VIEW) {
+            if (productId != -1) {
+                fetchProductData(productId);
+            } else {
+                Toast.makeText(this, R.string.error_product_not_found, Toast.LENGTH_SHORT).show();
+                finish();
             }
         }
     }
@@ -388,14 +345,9 @@ public class ProductActivity extends BaseActivity {
                                 ImageHelper.loadImage(this, imagePath, ivProductImage);
                             }
                             
-                            // Set spinners
-                            setSpinnerSelection(spinnerCategory, categoryNameToId, 
-                                    productData.getInt("categorie_id"));
-                            setSpinnerSelection(spinnerCity, cityNameToId, 
-                                    productData.getInt("ville_id"));
-                            setSpinnerSelection(spinnerType, typeNameToId, 
-                                    productData.getInt("type_id"));
-                            
+                            // Wait for spinners to be populated before setting selection
+                            waitForSpinnersAndSetSelection();
+
                             progressBar.setVisibility(View.GONE);
                         } catch (Exception e) {
                             Log.e(TAG, "Error setting product data: " + e.getMessage(), e);
@@ -421,6 +373,37 @@ public class ProductActivity extends BaseActivity {
         }).start();
     }
     
+    // Helper method to wait for spinners to be populated before setting selection
+    private void waitForSpinnersAndSetSelection() {
+        // Use a handler to check if spinners are populated
+        new Handler().postDelayed(() -> {
+            try {
+                if (productData != null) {
+                    // Set spinners
+                    if (spinnerCategory.getAdapter() != null && spinnerCategory.getAdapter().getCount() > 0) {
+                        setSpinnerSelection(spinnerCategory, categoryNameToId,
+                                productData.getInt("categorie_id"));
+                    }
+
+                    if (spinnerCity.getAdapter() != null && spinnerCity.getAdapter().getCount() > 0) {
+                        setSpinnerSelection(spinnerCity, cityNameToId,
+                                productData.getInt("ville_id"));
+                    }
+
+                    if (spinnerType.getAdapter() != null && spinnerType.getAdapter().getCount() > 0) {
+                        setSpinnerSelection(spinnerType, typeNameToId,
+                                productData.getInt("type_id"));
+                    } else {
+                        // If spinners are not yet populated, try again after a delay
+                        waitForSpinnersAndSetSelection();
+                    }
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Error setting spinner selection: " + e.getMessage(), e);
+            }
+        }, 500); // Check every 500ms
+    }
+
     private void setSpinnerSelection(Spinner spinner, Map<String, Integer> nameToIdMap, int targetId) {
         for (Map.Entry<String, Integer> entry : nameToIdMap.entrySet()) {
             if (entry.getValue() == targetId) {
