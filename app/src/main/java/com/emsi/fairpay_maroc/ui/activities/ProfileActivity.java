@@ -36,7 +36,9 @@ public class ProfileActivity extends AppCompatActivity {
     private static final String TAG = "ProfileActivity";
 
     private CircleImageView profileImage;
-    private EditText etName;
+    private EditText etFirstName; // Changed from etName to etFirstName
+    private EditText etLastName;  // Added for last name (nom)
+    private EditText etUsername;  // Added for username
     private EditText etEmail;
     private EditText etPhone;
     private Button btnSave;
@@ -91,7 +93,9 @@ public class ProfileActivity extends AppCompatActivity {
         profileImage.setOnClickListener(v -> openImagePicker());
 
         // Form fields
-        etName = findViewById(R.id.et_name);
+        etFirstName = findViewById(R.id.et_first_name);  // Update ID to match layout
+        etLastName = findViewById(R.id.et_last_name);    // Update ID to match layout
+        etUsername = findViewById(R.id.et_username);     // Update ID to match layout
         etEmail = findViewById(R.id.et_email);
         etPhone = findViewById(R.id.et_phone);
 
@@ -112,11 +116,12 @@ public class ProfileActivity extends AppCompatActivity {
 
         new Thread(() -> {
             try {
+                // Use "utilisateur" table instead of "users"
                 JSONArray result = SupabaseClient.queryTable(
-                        "users",
+                        "utilisateur",
                         "id",
                         String.valueOf(userId),
-                        "id,name,email,phone,profile_image"
+                        "id,nom,prenom,username,email,telephone,image"  // Include username
                 );
 
                 if (result.length() > 0) {
@@ -124,12 +129,15 @@ public class ProfileActivity extends AppCompatActivity {
 
                     runOnUiThread(() -> {
                         try {
-                            etName.setText(user.optString("name", ""));
+                            // Set individual fields
+                            etFirstName.setText(user.optString("prenom", ""));
+                            etLastName.setText(user.optString("nom", ""));
+                            etUsername.setText(user.optString("username", ""));
                             etEmail.setText(user.optString("email", ""));
-                            etPhone.setText(user.optString("phone", ""));
+                            etPhone.setText(user.optString("telephone", ""));
 
                             // Load profile image if available
-                            currentImageUrl = user.optString("profile_image", null);
+                            currentImageUrl = user.optString("image", null);
                             if (currentImageUrl != null && !currentImageUrl.isEmpty()) {
                                 // Load image using your preferred image loading library
                                 // For example with Glide:
@@ -157,11 +165,14 @@ public class ProfileActivity extends AppCompatActivity {
 
     private void saveUserProfile() {
         // Validate inputs
-        String name = etName.getText().toString().trim();
+        String firstName = etFirstName.getText().toString().trim();
+        String lastName = etLastName.getText().toString().trim();
+        String username = etUsername.getText().toString().trim();
         String email = etEmail.getText().toString().trim();
         String phone = etPhone.getText().toString().trim();
 
-        if (name.isEmpty() || email.isEmpty()) {
+        // Validate required fields
+        if (firstName.isEmpty() || lastName.isEmpty() || username.isEmpty() || email.isEmpty()) {
             Toast.makeText(this, R.string.please_fill_required_fields, Toast.LENGTH_SHORT).show();
             return;
         }
@@ -171,39 +182,40 @@ public class ProfileActivity extends AppCompatActivity {
         findViewById(R.id.progress_bar).setVisibility(View.VISIBLE);
 
         new Thread(() -> {
-            // Declare success variable at this scope level so it's accessible in the runOnUiThread block
             boolean success = false;
 
             try {
                 // Create JSON object with user data
                 JSONObject userData = new JSONObject();
-                userData.put("name", name);
+                userData.put("prenom", firstName);
+                userData.put("nom", lastName);
+                userData.put("username", username);
                 userData.put("email", email);
-                userData.put("phone", phone);
+                userData.put("telephone", phone);
 
                 // Upload image if changed
                 if (imageChanged && selectedImageUri != null) {
-                    String imageUrl = uploadImageToStorage(selectedImageUri);
-                    if (imageUrl != null) {
-                        userData.put("profile_image", imageUrl);
+                    try {
+                        String imageUrl = uploadImageToStorage(selectedImageUri);
+                        if (imageUrl != null && !imageUrl.isEmpty()) {
+                            userData.put("image", imageUrl);
+                        }
+                    } catch (Exception e) {
+                        Log.e(TAG, "Error uploading image: " + e.getMessage(), e);
+                        // Continue with the update even if image upload fails
                     }
                 }
 
                 // Update user data in Supabase
-                JSONObject fullData = new JSONObject(userData.toString());
                 try {
-                    // Add the user ID to the JSON object if needed
-                    fullData.put("id", userId);
+                    // Use the updateRecord method
+                    success = SupabaseClient.updateRecord("utilisateur", userId, userData);
 
-                    // Call updateRecord and handle the result
-                    JSONObject result = SupabaseClient.updateRecord("users", fullData);
-                    success = (result != null); // Or use a more specific check based on your API response
-
-                } catch (JSONException e) {
-                    Log.e(TAG, "Error adding ID to JSON object", e);
+                    Log.d(TAG, "Update result: " + success);
+                } catch (Exception e) {
+                    Log.e(TAG, "Error updating user data: " + e.getMessage(), e);
                 }
 
-                // Final success value is used in the UI update
                 final boolean finalSuccess = success;
 
                 runOnUiThread(() -> {
@@ -212,8 +224,9 @@ public class ProfileActivity extends AppCompatActivity {
 
                     if (finalSuccess) {
                         Toast.makeText(this, R.string.profile_updated_successfully, Toast.LENGTH_SHORT).show();
-                        // Update shared preferences if needed
-                        SharedPreferencesManager.getInstance(this).saveUserName(name);
+                        // Update shared preferences with the full name
+                        String fullName = firstName + " " + lastName;
+                        SharedPreferencesManager.getInstance(this).saveUserName(fullName);
 
                         // Set result and finish
                         setResult(RESULT_OK);
@@ -224,7 +237,7 @@ public class ProfileActivity extends AppCompatActivity {
                 });
 
             } catch (Exception e) {
-                Log.e(TAG, "Error saving user profile", e);
+                Log.e(TAG, "Error saving user profile: " + e.getMessage(), e);
                 runOnUiThread(() -> {
                     findViewById(R.id.progress_bar).setVisibility(View.GONE);
                     btnSave.setEnabled(true);
@@ -235,6 +248,11 @@ public class ProfileActivity extends AppCompatActivity {
     }
 
     private String uploadImageToStorage(Uri imageUri) throws IOException, JSONException {
+        if (imageUri == null) {
+            Log.e(TAG, "Image URI is null");
+            return null;
+        }
+
         // Get the file extension
         String fileExtension = getFileExtension(imageUri);
         if (fileExtension == null) {
@@ -242,30 +260,53 @@ public class ProfileActivity extends AppCompatActivity {
         }
 
         // Generate a unique filename using UUID
-        String fileName = "profile_" + UUID.randomUUID().toString() + "." + fileExtension;
+        String fileName = "profile_" + userId + "_" + UUID.randomUUID().toString() + "." + fileExtension;
 
-        // Convert the image to bytes
-        InputStream inputStream = getContentResolver().openInputStream(imageUri);
-        ByteArrayOutputStream byteBuffer = new ByteArrayOutputStream();
-        int bufferSize = 1024;
-        byte[] buffer = new byte[bufferSize];
-        int len;
-        while ((len = inputStream.read(buffer)) != -1) {
-            byteBuffer.write(buffer, 0, len);
+        try {
+            // Convert the image to bytes
+            InputStream inputStream = getContentResolver().openInputStream(imageUri);
+            if (inputStream == null) {
+                Log.e(TAG, "Failed to open input stream for image");
+                return null;
+            }
+
+            ByteArrayOutputStream byteBuffer = new ByteArrayOutputStream();
+            int bufferSize = 1024;
+            byte[] buffer = new byte[bufferSize];
+            int len;
+            while ((len = inputStream.read(buffer)) != -1) {
+                byteBuffer.write(buffer, 0, len);
+            }
+            inputStream.close();
+            byte[] imageBytes = byteBuffer.toByteArray();
+
+            if (imageBytes.length == 0) {
+                Log.e(TAG, "Image bytes array is empty");
+                return null;
+            }
+
+            // Determine content type
+            String contentType = "image/jpeg"; // Default
+            if (fileExtension.equalsIgnoreCase("png")) {
+                contentType = "image/png";
+            } else if (fileExtension.equalsIgnoreCase("gif")) {
+                contentType = "image/gif";
+            }
+
+            // Use the existing uploadFile method
+            String uploadedUrl = SupabaseClient.uploadFile(
+                "utilisateur-images", // Use the correct bucket name with hyphen
+                fileName,
+                imageBytes,
+                contentType
+            );
+
+            Log.d(TAG, "Uploaded image URL: " + uploadedUrl);
+            return uploadedUrl;
+        } catch (Exception e) {
+            Log.e(TAG, "Error uploading image to storage: " + e.getMessage(), e);
+            throw e;
         }
-        inputStream.close();
-        byte[] imageBytes = byteBuffer.toByteArray();
-
-        // Determine content type
-        String contentType = "image/jpeg"; // Default
-        if (fileExtension.equalsIgnoreCase("png")) {
-            contentType = "image/png";
-        } else if (fileExtension.equalsIgnoreCase("gif")) {
-            contentType = "image/gif";
-        }
-
-        // Upload to Supabase Storage
-        return SupabaseClient.uploadFile("profiles", fileName, imageBytes, contentType);
     }
 
     private String getFileExtension(Uri uri) {

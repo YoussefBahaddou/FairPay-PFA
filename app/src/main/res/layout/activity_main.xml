@@ -45,7 +45,8 @@
                         android:layout_height="24dp"
                         android:layout_gravity="center_vertical"
                         android:contentDescription="@string/search_icon"
-                        android:src="@drawable/ic_search" />
+                        android:src="@drawable/ic_search"
+                        android:fillColor="@android:color/black"/>
 
                     <EditText
                         android:id="@+id/search_bar"

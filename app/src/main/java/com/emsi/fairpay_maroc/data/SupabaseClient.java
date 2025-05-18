@@ -311,6 +311,7 @@ public class SupabaseClient {
         url += path;
 
         Log.d(TAG, "Update URL: " + url);
+        Log.d(TAG, "Update Data: " + data.toString());
 
         MediaType JSON = MediaType.parse("application/json; charset=utf-8");
         RequestBody body = RequestBody.create(data.toString(), JSON);
@@ -320,18 +321,38 @@ public class SupabaseClient {
                 .addHeader("apikey", SUPABASE_KEY)
                 .addHeader("Authorization", "Bearer " + SUPABASE_KEY)
                 .addHeader("Content-Type", "application/json")
+                .addHeader("Prefer", "return=representation")
                 .patch(body)
                 .build();
 
         try (Response response = getHttpClient().newCall(request).execute()) {
-            String responseData = response.body().string();
-
             if (!response.isSuccessful()) {
+                String responseData = response.body() != null ? response.body().string() : "No response body";
                 Log.e(TAG, "Error updating record: " + responseData);
                 throw new IOException("Unexpected code " + response + ": " + responseData);
             }
 
-            return new JSONObject(responseData);
+            // Get response body
+            String responseData = response.body() != null ? response.body().string() : "";
+            Log.d(TAG, "Update response: " + responseData);
+
+            // If response is empty, return an empty success JSONObject
+            if (responseData == null || responseData.trim().isEmpty()) {
+                return new JSONObject();
+            }
+
+            // Try to parse as JSONArray first (Supabase often returns arrays)
+            try {
+                JSONArray jsonArray = new JSONArray(responseData);
+                if (jsonArray.length() > 0) {
+                    return jsonArray.getJSONObject(0);
+                } else {
+                    return new JSONObject();
+                }
+            } catch (JSONException e) {
+                // If not an array, try to parse as JSONObject
+                return new JSONObject(responseData);
+            }
         } catch (Exception e) {
             Log.e(TAG, "Error updating record: " + e.getMessage(), e);
             throw e;
@@ -375,14 +396,14 @@ public class SupabaseClient {
         
         try (Response response = getHttpClient().newCall(request).execute()) {
             String responseBody = response.body() != null ? response.body().string() : "No response body";
-            
+
             if (!response.isSuccessful()) {
                 Log.e(TAG, "Error uploading file: " + response.code() + " - " + responseBody);
                 throw new IOException("Error uploading file: " + response.code() + " - " + responseBody);
             }
             
             Log.d(TAG, "File uploaded successfully: " + responseBody);
-            
+
             // Return the public URL for the file
             return SUPABASE_URL + "/storage/v1/object/public/" + bucketName + "/" + fileName;
         }

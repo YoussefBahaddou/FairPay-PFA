@@ -149,6 +149,9 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         // Handle back button press
         setupBackPressHandler();
 
+        // Load user profile image
+        loadUserProfileImage();
+
         // Initialize profile launcher
         profileLauncher = registerForActivityResult(
                 new ActivityResultContracts.StartActivityForResult(),
@@ -1684,7 +1687,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
     private void updateUserInfo() {
         // Refresh user information in the navigation drawer
-        // This is a placeholder - implement according to your app's needs
         TextView userNameView = findViewById(R.id.user_name);
         TextView userEmailView = findViewById(R.id.user_email);
 
@@ -1702,7 +1704,58 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             }
         }
 
-        // You might also want to refresh the profile image if it was changed
-        // This would require additional code to load the image from your storage
+        // Refresh the profile image
+        loadUserProfileImage();
+    }
+    private void loadUserProfileImage() {
+        // Get user ID from SharedPreferences
+        int userId = getSharedPreferences("FairPayPrefs", MODE_PRIVATE)
+                .getInt("user_id", -1);
+
+        if (userId == -1) {
+            return; // User not logged in
+        }
+
+        // Find the profile icon ImageView
+        de.hdodenhof.circleimageview.CircleImageView profileIcon = findViewById(R.id.profile_icon);
+        if (profileIcon == null) {
+            Log.e(TAG, "Profile icon view not found");
+            return;
+        }
+
+        // Fetch user profile image in background
+        new Thread(() -> {
+            try {
+                // Query the user to get their profile image URL
+                JSONArray userResult = SupabaseClient.queryTable(
+                        "utilisateur",
+                        "id",
+                        String.valueOf(userId),
+                        "image");
+
+                if (userResult.length() > 0) {
+                    String profileImageUrl = userResult.getJSONObject(0).optString("image", "");
+
+                    if (!profileImageUrl.isEmpty()) {
+                        // Load the image on the UI thread using Glide or similar library
+                        runOnUiThread(() -> {
+                            // You'll need to add Glide to your dependencies if not already added
+                            try {
+                                // Load image with Glide
+                                com.bumptech.glide.Glide.with(MainActivity.this)
+                                        .load(profileImageUrl)
+                                        .placeholder(R.drawable.user)
+                                        .error(R.drawable.user)
+                                        .into(profileIcon);
+                            } catch (Exception e) {
+                                Log.e(TAG, "Error loading profile image with Glide: " + e.getMessage(), e);
+                            }
+                        });
+                    }
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Error loading user profile image: " + e.getMessage(), e);
+            }
+        }).start();
     }
 }
