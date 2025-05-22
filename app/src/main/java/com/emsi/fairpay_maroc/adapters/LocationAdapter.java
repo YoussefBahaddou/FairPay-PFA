@@ -76,14 +76,41 @@ public class LocationAdapter extends RecyclerView.Adapter<LocationAdapter.Locati
             locationName.setText(location.getName());
             locationCity.setText(location.getVilleName());
 
-            // Since Location doesn't have an imageUrl field, use a placeholder image
-            locationImage.setImageResource(R.drawable.placeholder_image);
-
+            // Load the location image using Glide
+            if (location.getImageUrl() != null && !location.getImageUrl().isEmpty()) {
+                Glide.with(locationImage.getContext())
+                    .load(location.getImageUrl())
+                    .placeholder(R.drawable.placeholder_image)
+                    .error(R.drawable.placeholder_image)
+                    .centerCrop()
+                    .into(locationImage);
+            } else {
+                // If no image URL is available, use the placeholder
+                locationImage.setImageResource(R.drawable.placeholder_image);
+            }
         }
     }
     
     public void updateLocations(List<Location> newLocations) {
         this.locations = newLocations;
         notifyDataSetChanged();
+    }
+
+    public void updateLocationImage(int villeId, String imageUrl) {
+        for (int i = 0; i < locations.size(); i++) {
+            Location location = locations.get(i);
+            if (location.getVilleId() == villeId) {
+                // Create a new Location object with the updated image URL
+                Location updatedLocation = new Location(
+                    location.getVilleId(),
+                    location.getName(),
+                    location.getVilleName(),
+                    imageUrl
+                );
+                locations.set(i, updatedLocation);
+                notifyItemChanged(i);
+                break;
+            }
+        }
     }
 }

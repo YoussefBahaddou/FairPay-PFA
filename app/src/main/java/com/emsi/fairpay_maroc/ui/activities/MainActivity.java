@@ -591,16 +591,13 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 JSONArray categoriesArray = SupabaseClient.queryTable("categorie", null, null, "*");
 
                 if (categoriesArray == null) {
-                if (categoriesArray == null) {
                     Log.e(TAG, "Categories array is null from database");
-                        // Even if there's an error, set an empty adapter
-                        if (categoriesRecyclerView != null) {
-                            categoriesRecyclerView.setAdapter(new CategoryAdapter(new ArrayList<>()));
-                        }
-                        Toast.makeText(this, "Error fetching categories", Toast.LENGTH_SHORT).show();
-                        showLoading(false);
-                    };
-                    return;
+                    // Even if there's an error, set an empty adapter
+                    if (categoriesRecyclerView != null) {
+                        categoriesRecyclerView.setAdapter(new CategoryAdapter(new ArrayList<>()));
+                    }
+                    Toast.makeText(this, "Error fetching categories", Toast.LENGTH_SHORT).show();
+                    showLoading(false);
                 }
 
                 Log.d(TAG, "Fetched " + categoriesArray.length() + " categories from database");
@@ -692,13 +689,14 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
                     String regionName = locationData.optString("nom", "Unknown");
                     int villeId = locationData.optInt("ville_id", -1);
+                    String imageUrl = locationData.optString("image_url", "");
 
                     // Resolve ville name from ville_id
                     String villeName = resolveForeignKey("ville", "id", villeId, "nom");
 
-                    Location location = new Location(villeId, regionName, villeName);
+                    Location location = new Location(villeId, regionName, villeName, imageUrl);
                     locations.add(location);
-                    Log.d(TAG, "Parsed location: " + location.getName() + ", Ville: " + location.getVilleName());
+                    Log.d(TAG, "Parsed location: " + location.getName() + ", Ville: " + location.getVilleName() + ", Image: " + location.getImageUrl());
                 }
 
                 Log.d(TAG, "All locations parsed successfully. Updating RecyclerView...");
@@ -1143,15 +1141,35 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 targetColumn = "name";
             }
 
-            JSONArray result = SupabaseClient.queryTable(tableName, keyColumn, String.valueOf(keyValue), targetColumn);
+            // For ville table, fetch both nom and image_url
+            String columns = tableName.equals("ville") ? "nom,image_url" : targetColumn;
+            JSONArray result = SupabaseClient.queryTable(tableName, keyColumn, String.valueOf(keyValue), columns);
+            
             if (result != null && result.length() > 0) {
-                return result.getJSONObject(0).optString(targetColumn, "Unknown");
+                JSONObject row = result.getJSONObject(0);
+                String value = row.optString(targetColumn, "Unknown");
+                
+                // If this is a ville query and we have an image_url, update the location's image
+                if (tableName.equals("ville") && row.has("image_url")) {
+                    String imageUrl = row.optString("image_url", "");
+                    // Update the location's image URL in the adapter
+                    updateLocationImage(keyValue, imageUrl);
+                }
+                
+                return value;
             }
             Log.w(TAG, "No results found for " + tableName + " with " + keyColumn + "=" + keyValue);
             return "Unknown";
         } catch (Exception e) {
             Log.e(TAG, "Error resolving foreign key for " + tableName + ": " + e.getMessage(), e);
             return "Unknown";
+        }
+    }
+
+    private void updateLocationImage(int villeId, String imageUrl) {
+        if (locationsRecyclerView != null && locationsRecyclerView.getAdapter() != null) {
+            LocationAdapter adapter = (LocationAdapter) locationsRecyclerView.getAdapter();
+            adapter.updateLocationImage(villeId, imageUrl);
         }
     }
 
