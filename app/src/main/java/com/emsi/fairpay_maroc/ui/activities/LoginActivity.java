@@ -25,9 +25,6 @@ import com.google.android.material.textfield.TextInputLayout;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.osmdroid.util.GeoPoint;
-import android.view.View;
-import android.widget.Toast;
 
 
 public class LoginActivity extends AppCompatActivity {

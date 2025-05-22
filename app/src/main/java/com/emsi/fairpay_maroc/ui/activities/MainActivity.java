@@ -1569,6 +1569,12 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             startActivity(intent);
             // Apply custom animation
             overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left);
+        } else if (id == R.id.nav_chats) {
+            // Open the ChatListActivity
+            Intent intent = new Intent(MainActivity.this, ChatListActivity.class);
+            startActivity(intent);
+            // Apply custom animation
+            overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left);
         } else if (id == R.id.nav_profile) {
             // Launch the ProfileActivity
             Intent intent = new Intent(MainActivity.this, ProfileActivity.class);
@@ -1582,6 +1588,10 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             // Future implementation: open settings activity
         } else if (id == R.id.nav_logout) {
             logout();
+        } else if (id == R.id.nav_ai_pricing) {
+            startActivity(new Intent(MainActivity.this, AIPricingActivity.class));
+            // Apply custom animation
+            overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left);
         }
 
         drawerLayout.closeDrawer(GravityCompat.START);

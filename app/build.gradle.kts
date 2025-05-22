@@ -40,15 +40,13 @@ dependencies {
     implementation(libs.appcompat)
     implementation(libs.material)
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
-    implementation("com.github.bumptech.glide:glide:4.15.1")
+    implementation("com.github.bumptech.glide:glide:4.12.0")
+    annotationProcessor("com.github.bumptech.glide:compiler:4.12.0")
 
     // Maps
-    implementation ("org.osmdroid:osmdroid-android:6.1.14")
-    implementation ("org.osmdroid:osmdroid-wms:6.1.14")
-    implementation ("org.osmdroid:osmdroid-mapsforge:6.1.14")
-    implementation ("org.osmdroid:osmdroid-geopackage:6.1.14")
-    implementation ("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
-    implementation ("de.hdodenhof:circleimageview:3.1.0")
+    implementation("com.google.android.gms:play-services-maps:18.2.0")
+    implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
+    implementation("de.hdodenhof:circleimageview:3.1.0")
 
     // Testing
     testImplementation(libs.junit)

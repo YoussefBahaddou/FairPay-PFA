@@ -1,16 +1,10 @@
 package com.emsi.fairpay_maroc.ui.activities;
 
 import android.Manifest;
-import android.content.Context;
-import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
-import android.preference.PreferenceManager;
 import android.util.Log;
 import android.view.View;
-import android.widget.Button;
-import android.widget.ProgressBar;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -19,374 +13,196 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import com.emsi.fairpay_maroc.R;
-import com.emsi.fairpay_maroc.data.SupabaseClient;
-import com.emsi.fairpay_maroc.utils.GeolocationHelper;
+import com.google.android.gms.maps.CameraUpdateFactory;
+import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.OnMapReadyCallback;
+import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
+import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
+import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.material.button.MaterialButton;
+import com.google.android.material.textfield.TextInputEditText;
 
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
-import org.osmdroid.api.IMapController;
-import org.osmdroid.config.Configuration;
-import org.osmdroid.events.MapEventsReceiver;
-import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
-import org.osmdroid.util.GeoPoint;
-import org.osmdroid.views.MapView;
-import org.osmdroid.views.overlay.MapEventsOverlay;
-import org.osmdroid.views.overlay.Marker;
-import org.osmdroid.views.overlay.infowindow.InfoWindow;
+import java.util.HashMap;
+import java.util.Map;
 
-import java.util.ArrayList;
-import java.util.List;
-
-public class MapActivity extends AppCompatActivity {
+public class MapActivity extends AppCompatActivity implements OnMapReadyCallback {
 
     private static final String TAG = "MapLog";
     private static final int PERMISSION_REQUEST_CODE = 1;
-    
-    private MapView mapView;
-    private ProgressBar progressBar;
-    private TextView selectedLocationText;
-    private Button confirmButton;
-    private Marker selectedMarker;
-    private int selectedCityId = -1;
-    private String selectedCityName = "";
-    private List<Marker> markers = new ArrayList<>();
-    private GeoPoint selectedGeoPoint;
+
+    private GoogleMap googleMap;
+    private TextInputEditText searchEditText;
+    private Map<String, Map<String, Double>> productPrices;
+    private Map<String, Marker> cityMarkers;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        
-        // Initialize OSMdroid configuration
-        Context ctx = getApplicationContext();
-        Configuration.getInstance().load(ctx, PreferenceManager.getDefaultSharedPreferences(ctx));
-        Configuration.getInstance().setUserAgentValue(getPackageName());
-        
         setContentView(R.layout.activity_map);
 
-        // Request permissions
-        requestPermissionsIfNecessary(new String[] {
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.ACCESS_COARSE_LOCATION,
-                Manifest.permission.WRITE_EXTERNAL_STORAGE
+        // Initialize search bar
+        searchEditText = findViewById(R.id.search_edit_text);
+        MaterialButton searchButton = findViewById(R.id.search_button);
+
+        // Handle search button click
+        searchButton.setOnClickListener(v -> {
+            String searchText = searchEditText.getText().toString().trim().toLowerCase();
+            if (searchText.isEmpty()) {
+                Toast.makeText(this, "Please enter a product name", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            // Validate product name
+            if (!productPrices.containsKey(searchText)) {
+                Toast.makeText(this, "Product not found. Try: poulet, viande hachée, or sardine", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            // Show markers for valid product
+            showProductMarkers(searchText);
         });
 
-        // Initialize views
-        progressBar = findViewById(R.id.progress_bar);
-        selectedLocationText = findViewById(R.id.selected_location_text);
-        confirmButton = findViewById(R.id.confirm_button);
-        
-        Button useLocationButton = findViewById(R.id.use_location_button);
-        useLocationButton.setOnClickListener(v -> useCurrentLocation());
-        
-        if (confirmButton != null) {
-            confirmButton.setOnClickListener(v -> confirmLocationSelection());
-        }
+        // Initialize mock price data
+        initializeMockPrices();
 
-        // Initialize map
-        mapView = findViewById(R.id.map_view);
+        // Request location permission
+        requestPermissionsIfNecessary();
+
+        // Initialize Google Maps
+        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
+                .findFragmentById(R.id.map_view);
+        mapFragment.getMapAsync(this);
+    }
+
+    @Override
+    public void onMapReady(GoogleMap googleMap) {
+        this.googleMap = googleMap;
         setupMap();
-    }
-    
-    private void setupMap() {
-        mapView.setTileSource(TileSourceFactory.MAPNIK);
-        mapView.setMultiTouchControls(true);
-        
-        // Set initial map position to Morocco
-        IMapController mapController = mapView.getController();
-        mapController.setZoom(6.0);
-        GeoPoint startPoint = new GeoPoint(31.7917, -7.0926); // Morocco center
-        mapController.setCenter(startPoint);
-        
-        // Add markers for major cities
-        addCityMarkers();
-        
-        // Set up map click listener
-        setupMapClickListener();
-    }
-
-    private void setupMapClickListener() {
-        MapEventsReceiver mapEventsReceiver = new MapEventsReceiver() {
-            @Override
-            public boolean singleTapConfirmedHelper(GeoPoint p) {
-                selectedGeoPoint = p;
-                getCityFromCoordinates(p);
-                return true;
-            }
-
-            @Override
-            public boolean longPressHelper(GeoPoint p) {
-                return false;
-            }
-        };
-        
-        MapEventsOverlay mapEventsOverlay = new MapEventsOverlay(mapEventsReceiver);
-        mapView.getOverlays().add(mapEventsOverlay);
-    }
-
-    private void addCityMarker(GeoPoint position, String cityName, int cityId) {
-        Marker marker = new Marker(mapView);
-        marker.setPosition(position);
-        marker.setTitle(cityName);
-        marker.setSnippet("Tap to select");
-        marker.setIcon(ContextCompat.getDrawable(this, R.drawable.ic_location_blue));
-        marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
-        
-        // Store the city ID in the marker's related object
-        marker.setRelatedObject(cityId);
-        
-        // Set up info window click listener
-        marker.setOnMarkerClickListener((marker1, mapView) -> {
-            if (marker1.isInfoWindowShown()) {
-                marker1.closeInfoWindow();
-            } else {
-                marker1.showInfoWindow();
-                
-                // Update selected city
-                selectedCityId = (int) marker1.getRelatedObject();
-                selectedCityName = marker1.getTitle();
-                selectedGeoPoint = marker1.getPosition();
-                
-                // Update UI
-                if (selectedLocationText != null) {
-                    selectedLocationText.setText(getString(R.string.selected_location, selectedCityName));
-                    selectedLocationText.setVisibility(View.VISIBLE);
-                }
-                
-                if (confirmButton != null) {
-                    confirmButton.setEnabled(true);
-                }
-                
-                // Update marker appearance
-                if (selectedMarker != null) {
-                    selectedMarker.setIcon(ContextCompat.getDrawable(this, R.drawable.ic_location_blue));
-                }
-                
-                marker1.setIcon(ContextCompat.getDrawable(this, R.drawable.ic_location_red));
-                selectedMarker = marker1;
-                
-                Toast.makeText(MapActivity.this, "Selected: " + selectedCityName, Toast.LENGTH_SHORT).show();
-            }
-            return true;
-        });
-        
-        mapView.getOverlays().add(marker);
-        markers.add(marker);
-    }
-    
-    private void getCityFromCoordinates(GeoPoint geoPoint) {
-        if (progressBar != null) {
-            progressBar.setVisibility(View.VISIBLE);
-        }
-        
-        GeolocationHelper.getCityFromGeoPoint(this, geoPoint, new GeolocationHelper.LocationCallback() {
-            @Override
-            public void onLocationResult(GeoPoint location, String cityName, int cityId) {
-                if (progressBar != null) {
-                    progressBar.setVisibility(View.GONE);
-                }
-                
-                selectedCityId = cityId;
-                selectedCityName = cityName;
-                
-                if (selectedLocationText != null) {
-                    selectedLocationText.setText(getString(R.string.selected_location, selectedCityName));
-                    selectedLocationText.setVisibility(View.VISIBLE);
-                }
-                
-                if (confirmButton != null) {
-                    confirmButton.setEnabled(true);
-                }
-                
-                Toast.makeText(MapActivity.this, "Selected location: " + cityName, Toast.LENGTH_SHORT).show();
-            }
-            
-            @Override
-            public void onLocationError(String error) {
-                if (progressBar != null) {
-                    progressBar.setVisibility(View.GONE);
-                }
-                Toast.makeText(MapActivity.this, error, Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
-
-    private void useCurrentLocation() {
-        if (progressBar != null) {
-            progressBar.setVisibility(View.VISIBLE);
-        }
-        
-        GeolocationHelper.getCurrentLocationAndCity(this, new GeolocationHelper.LocationCallback() {
-            @Override
-            public void onLocationResult(GeoPoint location, String cityName, int cityId) {
-                if (progressBar != null) {
-                    progressBar.setVisibility(View.GONE);
-                }
-                
-                // Update the selected city
-                selectedCityId = cityId;
-                selectedCityName = cityName;
-                selectedGeoPoint = location;
-                
-                // Update UI
-                if (selectedLocationText != null) {
-                    selectedLocationText.setText(getString(R.string.selected_location, selectedCityName));
-                    selectedLocationText.setVisibility(View.VISIBLE);
-                }
-                
-                if (confirmButton != null) {
-                    confirmButton.setEnabled(true);
-                }
-                
-                // Move camera to the location
-                IMapController mapController = mapView.getController();
-                mapController.animateTo(selectedGeoPoint);
-                mapController.setZoom(12.0);
-                
-                // Clear previous markers
-                if (selectedMarker != null) {
-                    mapView.getOverlays().remove(selectedMarker);
-                }
-                
-                // Add new marker
-                Marker marker = new Marker(mapView);
-                marker.setPosition(selectedGeoPoint);
-                marker.setTitle(cityName);
-                marker.setIcon(ContextCompat.getDrawable(MapActivity.this, R.drawable.ic_location_red));
-                marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
-                
-                mapView.getOverlays().add(marker);
-                selectedMarker = marker;
-                markers.add(marker);
-                
-                Toast.makeText(MapActivity.this, "Nearest city: " + cityName, Toast.LENGTH_SHORT).show();
-            }
-            
-            @Override
-            public void onLocationError(String error) {
-                if (progressBar != null) {
-                    progressBar.setVisibility(View.GONE);
-                }
-                Toast.makeText(MapActivity.this, error, Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
-    
-    private void confirmLocationSelection() {
-        if (selectedCityId != -1 && !selectedCityName.isEmpty()) {
-            Intent resultIntent = new Intent();
-            resultIntent.putExtra("city_id", selectedCityId);
-            resultIntent.putExtra("city_name", selectedCityName);
-            setResult(RESULT_OK, resultIntent);
-            finish();
-        } else {
-            Toast.makeText(this, "Please select a location first", Toast.LENGTH_SHORT).show();
-        }
-    }
-
-    private void requestPermissionsIfNecessary(String[] permissions) {
-        ArrayList<String> permissionsToRequest = new ArrayList<>();
-        for (String permission : permissions) {
-            if (ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED) {
-                permissionsToRequest.add(permission);
-            }
-        }
-                if (permissionsToRequest.size() > 0) {
-            ActivityCompat.requestPermissions(
-                    this,
-                    permissionsToRequest.toArray(new String[0]),
-                    PERMISSION_REQUEST_CODE);
-        }
     }
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        
         if (requestCode == PERMISSION_REQUEST_CODE) {
-            for (int i = 0; i < permissions.length; i++) {
-                if (Manifest.permission.ACCESS_FINE_LOCATION.equals(permissions[i]) ||
-                    Manifest.permission.ACCESS_COARSE_LOCATION.equals(permissions[i])) {
-                    if (grantResults[i] == PackageManager.PERMISSION_GRANTED) {
-                        // Permission granted, try to get current location
-                        useCurrentLocation();
-                    } else {
-                        Toast.makeText(this, "Location permission is required for better experience", Toast.LENGTH_LONG).show();
-                    }
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                        == PackageManager.PERMISSION_GRANTED) {
+                    googleMap.setMyLocationEnabled(true);
                 }
             }
         }
     }
 
-    @Override
-    protected void onResume() {
-        super.onResume();
-        mapView.onResume();
+    private void setupMap() {
+        if (googleMap == null) return;
+
+        // Enable zoom controls
+        googleMap.getUiSettings().setZoomControlsEnabled(true);
+
+        // Set initial map position to Morocco
+        LatLng moroccoCenter = new LatLng(31.7917, -7.0926);
+        googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(moroccoCenter, 6.0f));
+
+        // Enable location layer
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED) {
+            googleMap.setMyLocationEnabled(true);
+        }
     }
 
-    @Override
-    protected void onPause() {
-        super.onPause();
-        mapView.onPause();
+    private void initializeMockPrices() {
+        productPrices = new HashMap<>();
+        cityMarkers = new HashMap<>();
+
+        // Mock prices for different cities (in MAD)
+        Map<String, Double> pouletPrices = new HashMap<>();
+        pouletPrices.put("casablanca", 30.0);
+        pouletPrices.put("marrakech", 35.0);
+        pouletPrices.put("rabat", 32.0);
+        pouletPrices.put("fes", 28.0);
+        pouletPrices.put("tanger", 33.0);
+        pouletPrices.put("essaouira", 31.0);
+        productPrices.put("poulet", pouletPrices);
+
+        Map<String, Double> viandeHacheePrices = new HashMap<>();
+        viandeHacheePrices.put("casablanca", 120.0);
+        viandeHacheePrices.put("marrakech", 115.0);
+        viandeHacheePrices.put("rabat", 125.0);
+        viandeHacheePrices.put("fes", 118.0);
+        viandeHacheePrices.put("tanger", 122.0);
+        viandeHacheePrices.put("essaouira", 110.0);
+        productPrices.put("viande hachée", viandeHacheePrices);
+
+        Map<String, Double> sardinePrices = new HashMap<>();
+        sardinePrices.put("casablanca", 25.0);
+        sardinePrices.put("marrakech", 28.0);
+        sardinePrices.put("rabat", 26.0);
+        sardinePrices.put("fes", 24.0);
+        sardinePrices.put("tanger", 27.0);
+        sardinePrices.put("essaouira", 20.0); // Cheapest in Essaouira
+        productPrices.put("sardine", sardinePrices);
     }
 
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        mapView.onDetach();
+    private void showProductMarkers(String productName) {
+        // Clear existing markers
+        if (cityMarkers != null) {
+            cityMarkers.values().forEach(marker -> marker.remove());
+            cityMarkers.clear();
+        }
+
+        // Get prices for the searched product
+        Map<String, Double> cityPrices = productPrices.get(productName.toLowerCase());
+        if (cityPrices == null) {
+            Log.e(TAG, "Product not found: " + productName);
+            Toast.makeText(this, "Product not found", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Find min and max prices
+        double minPrice = Double.MAX_VALUE;
+        double maxPrice = Double.MIN_VALUE;
+        for (double price : cityPrices.values()) {
+            if (price < minPrice) minPrice = price;
+            if (price > maxPrice) maxPrice = price;
+        }
+        Log.d(TAG, "Price range for " + productName + ": " + minPrice + " - " + maxPrice);
+
+        // Add markers for each city
+        addCityMarker(new LatLng(33.5899, -7.6033), "Casablanca", cityPrices.get("casablanca"), minPrice, maxPrice);
+        addCityMarker(new LatLng(31.6295, -8.0008), "Marrakech", cityPrices.get("marrakech"), minPrice, maxPrice);
+        addCityMarker(new LatLng(34.0183, -6.8416), "Rabat", cityPrices.get("rabat"), minPrice, maxPrice);
+        addCityMarker(new LatLng(33.9317, -4.9899), "Fes", cityPrices.get("fes"), minPrice, maxPrice);
+        addCityMarker(new LatLng(35.7451, -5.8559), "Tanger", cityPrices.get("tanger"), minPrice, maxPrice);
+        addCityMarker(new LatLng(31.4764, -9.4733), "Essaouira", cityPrices.get("essaouira"), minPrice, maxPrice);
+        Log.d(TAG, "Markers added for " + productName + " in all cities");
+
+        // Center the map on Morocco
+        LatLng moroccoCenter = new LatLng(31.7917, -7.0926);
+        googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(moroccoCenter, 5.5f));
+        Log.d(TAG, "Map centered on Morocco");
     }
 
-    private void addCityMarkers() {
-        try {
-            // Show progress while loading cities
-            if (progressBar != null) {
-                progressBar.setVisibility(View.VISIBLE);
-            }
-            
-            // Fetch cities from your database (using SupabaseClient or other data source)
-            new Thread(() -> {
-                try {
-                    // Example: Fetch cities from Supabase
-                    JSONArray cities = SupabaseClient.queryTable("ville", null, null, "id,nom,latitude,longitude");
-                    
-                    runOnUiThread(() -> {
-                        try {
-                            // Add a marker for each city
-                            for (int i = 0; i < cities.length(); i++) {
-                                JSONObject city = cities.getJSONObject(i);
-                                int cityId = city.getInt("id");
-                                String cityName = city.getString("nom");
-                                double latitude = city.getDouble("latitude");
-                                double longitude = city.getDouble("longitude");
-                                
-                                GeoPoint position = new GeoPoint(latitude, longitude);
-                                addCityMarker(position, cityName, cityId);
-                            }
-                        } catch (JSONException e) {
-                            Log.e("MapActivity", "Error parsing city data: " + e.getMessage(), e);
-                            Toast.makeText(MapActivity.this, "Error loading cities", Toast.LENGTH_SHORT).show();
-                        } finally {
-                            // Hide progress when done
-                            if (progressBar != null) {
-                                progressBar.setVisibility(View.GONE);
-                            }
-                        }
-                    });
-                } catch (Exception e) {
-                    Log.e("MapActivity", "Error fetching cities: " + e.getMessage(), e);
-                    runOnUiThread(() -> {
-                        Toast.makeText(MapActivity.this, "Error loading cities", Toast.LENGTH_SHORT).show();
-                        if (progressBar != null) {
-                            progressBar.setVisibility(View.GONE);
-                        }
-                    });
-                }
-            }).start();
-        } catch (Exception e) {
-            Log.e("MapActivity", "Error in addCityMarkers: " + e.getMessage(), e);
-            if (progressBar != null) {
-                progressBar.setVisibility(View.GONE);
-            }
+    private void addCityMarker(LatLng position, String cityName, double price, double minPrice, double maxPrice) {
+        // Calculate color based on price (green for low, red for high)
+        float hue = (float) (1.0 - ((price - minPrice) / (maxPrice - minPrice))) * 240; // 0=red, 120=green, 240=blue
+        Marker marker = googleMap.addMarker(new MarkerOptions()
+                .position(position)
+                .title(cityName)
+                .snippet("Price: " + String.format("%.2f MAD", price))
+                .icon(BitmapDescriptorFactory.defaultMarker(hue)));
+
+        cityMarkers.put(cityName.toLowerCase(), marker);
+    }
+
+    private void requestPermissionsIfNecessary() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(
+                    this,
+                    new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
+                    PERMISSION_REQUEST_CODE);
         }
     }
 }

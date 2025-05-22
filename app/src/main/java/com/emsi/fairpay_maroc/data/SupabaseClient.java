@@ -7,6 +7,8 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
@@ -151,7 +153,15 @@ public class SupabaseClient {
      * @throws Exception If any other error occurs
      */
     public static JSONObject insertIntoTable(String table, JSONObject data) throws IOException, Exception {
-        String url = SUPABASE_URL + table;
+        // Make sure we have the correct URL format with /rest/v1/
+        String url = SUPABASE_URL;
+        if (!url.endsWith("/")) {
+            url += "/";
+        }
+        if (!url.endsWith("rest/v1/")) {
+            url += "rest/v1/";
+        }
+        url += table;
         
         RequestBody body = RequestBody.create(data.toString(), JSON);
         
@@ -560,5 +570,18 @@ public class SupabaseClient {
             Log.e(TAG, "Error checking if column exists: " + e.getMessage(), e);
             return false;
         }
+    }
+
+    public static boolean deleteFromTable(String path) throws Exception {
+        String url = SUPABASE_URL + "/rest/v1/" + path;
+        HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
+        connection.setRequestMethod("DELETE");
+        connection.setRequestProperty("apikey", SUPABASE_KEY);
+        connection.setRequestProperty("Authorization", "Bearer " + SUPABASE_KEY);
+        connection.setRequestProperty("Content-Type", "application/json");
+        connection.setRequestProperty("Prefer", "return=minimal");
+
+        int responseCode = connection.getResponseCode();
+        return responseCode >= 200 && responseCode < 300;
     }
 }

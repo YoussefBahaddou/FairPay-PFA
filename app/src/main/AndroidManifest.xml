@@ -18,6 +18,9 @@
         android:theme="@style/Theme.FairPayMaroc"
         tools:targetApi="31"
         tools:replace="android:allowBackup">
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="@string/google_maps_key" />
 
         <activity
             android:name=".ui.activities.SplashActivity"
@@ -83,6 +86,19 @@
             android:name=".ui.activities.ProductListActivity"
             android:exported="false"
             android:theme="@style/AppTheme.NoActionBar" />
+
+        <activity
+            android:name=".ui.activities.ChatListActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ui.activities.ChatDetailActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ui.activities.AddChatActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ui.activities.AIPricingActivity"
+            android:exported="false" />
     </application>
 
 </manifest>

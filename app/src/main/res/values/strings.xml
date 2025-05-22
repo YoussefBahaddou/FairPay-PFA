@@ -217,4 +217,37 @@
     <string name="view_all_products">View all products</string>
     <string name="product_options">Product options</string>
     <string name="error_fetching_data">Error fetching data</string>
+
+
+    <!-- Chat Strings -->
+    <string name="chats">Chats</string>
+    <string name="add_chat">Add Chat</string>
+    <string name="delete_chat">Delete Chat</string>
+    <string name="delete_comment">Delete Comment</string>
+    <string name="type_message">Type a message…</string>
+    <string name="send">Send</string>
+    <string name="chat_subject">Chat Subject</string>
+    <string name="enter_subject">Enter subject</string>
+    <string name="create_chat">Create Chat</string>
+    <string name="error_empty_subject">Subject cannot be empty</string>
+    <string name="error_empty_message">Message cannot be empty</string>
+    <string name="chat_created">Chat created successfully</string>
+    <string name="chat_deleted">Chat deleted successfully</string>
+    <string name="comment_added">Comment added successfully</string>
+    <string name="comment_deleted">Comment deleted successfully</string>
+    <string name="error_creating_chat">Error creating chat</string>
+    <string name="error_deleting_chat">Error deleting chat</string>
+    <string name="error_sending_message">Error sending message</string>
+
+    <string name="message_sent">Message sent successfully</string>
+    <string name="message_deleted">Message deleted successfully</string>
+
+    <!-- AI Pricing -->
+    <string name="ai_pricing">Approximative AI</string>
+    <string name="ai_pricing_hint">Ask about prices in Morocco</string>
+    <string name="ai_pricing_error">Sorry, I can only help with pricing information in Morocco.</string>
+    <string name="ai_pricing_loading">Getting price information...</string>
+    <string name="ai_pricing_send">Send</string>
+    <string name="ai_pricing_clear">Clear</string>
+
 </resources>

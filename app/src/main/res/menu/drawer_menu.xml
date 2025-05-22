@@ -17,6 +17,14 @@
             android:id="@+id/nav_collabs"
             android:icon="@drawable/baseline_business_24"
             android:title="Collabs" />
+        <item
+            android:id="@+id/nav_chats"
+            android:icon="@drawable/ic_chat"
+            android:title="@string/chats" />
+        <item
+            android:id="@+id/nav_ai_pricing"
+            android:icon="@drawable/ic_ai"
+            android:title="@string/ai_pricing" />
     </group>
 
     <item android:title="@string/account">

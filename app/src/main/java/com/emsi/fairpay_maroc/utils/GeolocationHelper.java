@@ -13,7 +13,7 @@ import android.util.Log;
 
 import androidx.core.app.ActivityCompat;
 
-import org.osmdroid.util.GeoPoint;
+import com.google.android.gms.maps.model.LatLng;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -25,7 +25,7 @@ public class GeolocationHelper {
     private static final String TAG = "GeolocationHelper";
 
     public interface LocationCallback {
-        void onLocationResult(GeoPoint location, String cityName, int cityId);
+        void onLocationResult(LatLng location, String cityName, int cityId);
         void onLocationError(String error);
     }
 
@@ -53,16 +53,16 @@ public class GeolocationHelper {
 
         if (lastKnownLocation != null) {
             // We have a last known location, use it
-            GeoPoint geoPoint = new GeoPoint(lastKnownLocation.getLatitude(), lastKnownLocation.getLongitude());
-            getCityNameFromLocation(context, geoPoint, callback);
+            LatLng latLng = new LatLng(lastKnownLocation.getLatitude(), lastKnownLocation.getLongitude());
+            getCityNameFromLocation(context, latLng, callback);
         } else {
             // No last known location, request location updates
             try {
                 locationManager.requestSingleUpdate(LocationManager.GPS_PROVIDER, new LocationListener() {
                     @Override
                     public void onLocationChanged(Location location) {
-                        GeoPoint geoPoint = new GeoPoint(location.getLatitude(), location.getLongitude());
-                        getCityNameFromLocation(context, geoPoint, callback);
+                        LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
+                        getCityNameFromLocation(context, latLng, callback);
                     }
 
                     @Override
@@ -89,8 +89,8 @@ public class GeolocationHelper {
                     locationManager.requestSingleUpdate(LocationManager.NETWORK_PROVIDER, new LocationListener() {
                         @Override
                         public void onLocationChanged(Location location) {
-                            GeoPoint geoPoint = new GeoPoint(location.getLatitude(), location.getLongitude());
-                            getCityNameFromLocation(context, geoPoint, callback);
+                            LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
+                            getCityNameFromLocation(context, latLng, callback);
                         }
 
                         @Override
@@ -113,15 +113,15 @@ public class GeolocationHelper {
         }
     }
 
-    // Method to handle OSMdroid GeoPoint directly
-    public static void getCityFromGeoPoint(Context context, GeoPoint geoPoint, LocationCallback callback) {
-        getCityNameFromLocation(context, geoPoint, callback);
+    // Method to handle LatLng directly
+    public static void getCityFromGeoPoint(Context context, LatLng latLng, LocationCallback callback) {
+        getCityNameFromLocation(context, latLng, callback);
     }
 
-    private static void getCityNameFromLocation(Context context, GeoPoint geoPoint, LocationCallback callback) {
+    private static void getCityNameFromLocation(Context context, LatLng latLng, LocationCallback callback) {
         Geocoder geocoder = new Geocoder(context, Locale.getDefault());
         try {
-            List<Address> addresses = geocoder.getFromLocation(geoPoint.getLatitude(), geoPoint.getLongitude(), 1);
+            List<Address> addresses = geocoder.getFromLocation(latLng.latitude, latLng.longitude, 1);
             if (addresses != null && !addresses.isEmpty()) {
                 Address address = addresses.get(0);
                 String cityName = address.getLocality();
@@ -135,7 +135,7 @@ public class GeolocationHelper {
                 // Map common city names to our database IDs
                 int cityId = getCityIdByName(cityName);
                 
-                callback.onLocationResult(geoPoint, cityName, cityId);
+                callback.onLocationResult(latLng, cityName, cityId);
             } else {
                 callback.onLocationError("Could not determine city from location");
             }
